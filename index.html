@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lixeira inteligente</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="script.js" defer></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Simulação lixeira</h1>
+    <p>Status: <span id="ledStatus">Desconhecido</span></p>
+
+    <!-- Interruptor
+    <div class="switch" id="toggleSwitch">
+        <div class="switch-toggle"></div>
+    </div> -->
+    <button id="ativacaoManualBtn">Ativação Manual</button>
+    <div class="input-container">
+        <input type="text" id="userInput" placeholder="Digite a altura da lixeira" />
+        <button onclick="definirAltura()">Enviar</button>
+    </div>
+
+</body>
+</html>
