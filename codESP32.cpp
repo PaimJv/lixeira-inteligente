@@ -168,7 +168,7 @@ void loop() {
         volume = (altura - distancia)/altura*100;
       }
 
-      if (volume >= 0) {  // Verifica se a medição é válida
+      if (volume >= 0 && volume <= 100) {  // Verifica se a medição é válida
 
         Serial.print("Distância: ");
         Serial.print(distancia);
