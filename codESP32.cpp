@@ -1,39 +1,37 @@
-/* 4. Defina o email e senha do usuário já registrado ou adicionado ao seu projeto */
 #define USER_EMAIL "lixeira1@gmail.com"
 #define USER_PASSWORD "lixeira123"
 
-/*
-SISTEMA DE MONITORAMENTO DE LIXEIRA - ESP32
-
-Principal:
-	Implementar a coleta da distância através de interrupção
-	Converter a distância para porcentagem
-	Enviar a porcentagem para o banco de dados
-	
-Secundário:
-	Implementar lógica para detectar abertura da tampa e só contabilizar após 15s de inércia
-	Monitorar porcentagem da bateria através do voltímetro
-*/
-
-#include <WiFi.h>
-#include <Firebase_ESP_Client.h>
-
-/* 1. Defina as credenciais do WiFi */
 #define WIFI_SSID "R&J VEICULOS"
 #define WIFI_PASSWORD "81367566"
 
-/* 2. Defina a chave da API */
 #define API_KEY "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0"
-
-/* 3. Defina a URL do RTDB (Realtime Database) */
 #define DATABASE_URL "https://lixeira-inteligente-esp32-default-rtdb.firebaseio.com"
 
+#include <WiFi.h>
+#include <Firebase_ESP_Client.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_ADXL345_U.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_ADXL345_U.h>
 
-// Define o objeto de dados do Firebase
 FirebaseData fbdo;
 
 FirebaseAuth auth;
 FirebaseConfig config;
+
+// Define o objeto do acelerômetro ADXL345
+Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
+
+// Pino do LED
+// const int ledPlaca = 2;
+
+// Limiar de movimento (em m/s^2)
+const float MOVEMENT_THRESHOLD = 0.5;
+
+// Armazena as últimas acelerações para comparação
+float lastAcceleration[3] = { 0.0, 0.0, 0.0 };
 
 // Variáveis globais para controle de tempo
 unsigned long sendDataPrevMillis = 0;
@@ -46,6 +44,16 @@ const unsigned long inerciaCheckInterval = 1000;        // Intervalo de 1000 ms 
 const unsigned long inerciaDurationRequired = 1500;     // 1,5 segundos
 const unsigned long alturaCheckInterval = 2000;         // Intervalo de 2000 ms para altura
 
+// Variáveis para controle de tempo parado
+unsigned long stillStartTime = 0;                  // Tempo em que o sensor ficou parado
+const unsigned long stillDurationRequired = 3000;  // 3 segundos
+const unsigned long stillDurationTolerance = 100;  // Tolerância de ±100 ms
+bool comandoEnviado = false;                       // Flag para evitar múltiplos envios
+
+// Variáveis para interrupção de software
+unsigned long lastCheckMillis = 0;        // Última verificação
+const unsigned long checkInterval = 100;  // Intervalo de verificação (100 ms)
+
 const int trigger = 4;
 const int echo = 15;
 const int ledPlaca = 2;
@@ -53,11 +61,12 @@ const int ledPlaca = 2;
 float distancia = -1;  // Inicializado como -1 para indicar valor inválido
 float altura;
 int volume;
-bool inercia = false;
+// bool inercia = false;
 bool ativacao = false;  // Inicializado como false
 
 void setup() {
   Serial.begin(9600);
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   pinMode(trigger, OUTPUT);
@@ -82,10 +91,72 @@ void setup() {
   Firebase.begin(&config, &auth);
   Firebase.setDoubleDigits(5);  // Faltava um ponto e vírgula aqui
   config.timeout.serverResponse = 10 * 1000;
+
+  Serial.println("Teste do Acelerômetro ADXL345 com Detecção de Movimento");
+
+  // Configura o pino do LED como saída
+  // pinMode(ledPlaca, OUTPUT);
+  // digitalWrite(ledPlaca, LOW); // LED inicia apagado
+
+  // Inicializa o sensor
+  if (!accel.begin()) {
+    Serial.println("Erro: ADXL345 não detectado. Verifique as conexões!");
+    while (1)
+      ;  // Para o programa se o sensor não for encontrado
+  }
+
+  // Configurações do sensor
+  accel.setRange(ADXL345_RANGE_2_G);           // Faixa de ±2g para maior sensibilidade
+  accel.setDataRate(ADXL345_DATARATE_100_HZ);  // Taxa de dados: 100 Hz
+
+  // Exibe informações do sensor
+  sensor_t sensor;
+  accel.getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.print("Sensor: ");
+  Serial.println(sensor.name);
+  Serial.print("Versão do Driver: ");
+  Serial.println(sensor.version);
+  Serial.print("ID Único: ");
+  Serial.println(sensor.sensor_id);
+  Serial.print("Valor Máximo: ");
+  Serial.print(sensor.max_value);
+  Serial.println(" m/s^2");
+  Serial.print("Valor Mínimo: ");
+  Serial.print(sensor.min_value);
+  Serial.println(" m/s^2");
+  Serial.print("Resolução: ");
+  Serial.print(sensor.resolution);
+  Serial.println(" m/s^2");
+  Serial.println("------------------------------------");
+
+  // Exibe a faixa configurada
+  Serial.print("Faixa: +/- ");
+  switch (accel.getRange()) {
+    case ADXL345_RANGE_16_G: Serial.println("16 g"); break;
+    case ADXL345_RANGE_8_G: Serial.println("8 g"); break;
+    case ADXL345_RANGE_4_G: Serial.println("4 g"); break;
+    case ADXL345_RANGE_2_G: Serial.println("2 g"); break;
+    default: Serial.println("?? g"); break;
+  }
+
+  // Exibe a taxa de dados configurada
+  Serial.print("Taxa de Dados: ");
+  switch (accel.getDataRate()) {
+    case ADXL345_DATARATE_3200_HZ: Serial.println("3200 Hz"); break;
+    case ADXL345_DATARATE_1600_HZ: Serial.println("1600 Hz"); break;
+    case ADXL345_DATARATE_800_HZ: Serial.println("800 Hz"); break;
+    case ADXL345_DATARATE_400_HZ: Serial.println("400 Hz"); break;
+    case ADXL345_DATARATE_200_HZ: Serial.println("200 Hz"); break;
+    case ADXL345_DATARATE_100_HZ: Serial.println("100 Hz"); break;
+    case ADXL345_DATARATE_50_HZ: Serial.println("50 Hz"); break;
+    case ADXL345_DATARATE_25_HZ: Serial.println("25 Hz"); break;
+    default: Serial.println("?? Hz"); break;
+  }
 }
 
 void loop() {
-  if (Firebase.ready() && (millis() - sendDataPrevMillis > 1000 || sendDataPrevMillis == 0)) {
+    if (Firebase.ready() && (millis() - sendDataPrevMillis > 1000 || sendDataPrevMillis == 0)) {
     sendDataPrevMillis = millis();
 
     ativarSistema();
@@ -123,6 +194,52 @@ void loop() {
   }
 }
 
+void checkMovement() {
+  // Obtém um evento do sensor
+  sensors_event_t event;
+  accel.getEvent(&event);
+
+  // Obtém as acelerações atuais
+  float currentX = event.acceleration.x;
+  float currentY = event.acceleration.y;
+  float currentZ = event.acceleration.z;
+
+  // Verifica se houve movimento significativo
+  bool isMoving = (abs(currentX - lastAcceleration[0]) >= MOVEMENT_THRESHOLD || abs(currentY - lastAcceleration[1]) >= MOVEMENT_THRESHOLD || abs(currentZ - lastAcceleration[2]) >= MOVEMENT_THRESHOLD);
+
+  if (isMoving) {
+    // Movimento detectado: acende o LED e exibe as acelerações
+    // digitalWrite(ledPlaca, HIGH);
+    Serial.println("Movimento detectado!");
+    // Serial.print("X: "); Serial.print(currentX); Serial.print(" m/s^2 ");
+    // Serial.print("Y: "); Serial.print(currentY); Serial.print(" m/s^2 ");
+    // Serial.print("Z: "); Serial.print(currentZ); Serial.print(" m/s^2 ");
+    // Serial.println();
+    stillStartTime = 0;      // Reinicia o contador de tempo parado
+    comandoEnviado = false;  // Reseta a flag de comando
+  } else {
+    // Sem movimento: apaga o LED
+    // digitalWrite(ledPlaca, LOW);
+
+    // Inicia a contagem de tempo parado, se ainda não iniciada
+    if (stillStartTime == 0) {
+      stillStartTime = millis();
+    }
+
+    // Verifica se o sistema está parado por ~3 segundos
+    unsigned long stillDuration = millis() - stillStartTime;
+    if (!comandoEnviado && stillDuration >= (stillDurationRequired - stillDurationTolerance) && stillDuration <= (stillDurationRequired + stillDurationTolerance)) {
+      ativacao = true;
+      Serial.println("Sistema ativado");
+    }
+  }
+
+  // Atualiza as últimas acelerações
+  lastAcceleration[0] = currentX;
+  lastAcceleration[1] = currentY;
+  lastAcceleration[2] = currentZ;
+}
+
 void medicao() {
   digitalWrite(trigger, LOW);
   delayMicroseconds(2);  // Estado baixo antes do pulso
@@ -146,9 +263,6 @@ void ativarSistema() {
 
     if (Firebase.RTDB.getBool(&fbdo, "/sensor/ativacaoManual")) {
       bool ativacaoManual = fbdo.boolData();
-      // Serial.print("AtivacaoManual lida do Firebase: ");
-      // Serial.println(ativacaoManual);
-
       // Define ativacao com base em ativacaoManual
       ativacao = ativacaoManual;
     } else {
@@ -156,53 +270,22 @@ void ativarSistema() {
     }
   }
 
-  // Só verifica inercia e altura se ativacao for true
-  if (ativacao) {
-    // Verifica /sensor/inercia
-    if (millis() - inerciaCheckPrevMillis >= inerciaCheckInterval) {
-      inerciaCheckPrevMillis = millis();  // Atualiza o tempo anterior
+  // Verifica /sensor/altura
+  if (millis() - alturaCheckPrevMillis >= alturaCheckInterval) {
+    alturaCheckPrevMillis = millis();  // Atualiza o tempo anterior
 
-      if (Firebase.RTDB.getInt(&fbdo, "/sensor/inercia")) {
-        int inerciaValue = fbdo.intData();
-        bool newInercia = (inerciaValue == 1);  // Converte 1 para true, 0 para false
-        // Serial.print("Inercia lida do Firebase: ");
-        // Serial.println(newInercia);
-
-        if (newInercia != inercia) {
-          if (newInercia) {
-            inerciaStartTime = millis();
-            Serial.println("Inercia ativada, começando contagem");
-          } else {
-            inerciaStartTime = 0;
-            Serial.println("Inercia desativada");
-          }
-          inercia = newInercia;
-        }
-
-        // Verifica se inercia está ativa por aproximadamente 1,5 segundos
-        if (inercia && inerciaStartTime > 0) {
-          unsigned long inerciaDuration = millis() - inerciaStartTime;
-          if (inerciaDuration >= (inerciaDurationRequired - 500) && inerciaDuration <= (inerciaDurationRequired + 500)) {
-            ativacao = true;  // Mantém ativacao true
-            Serial.println("Inercia ativa por ~1,5 segundos, ativacao = true");
-          }
-        }
-      } else {
-        Serial.println("Erro ao ler inercia: " + fbdo.errorReason());
-      }
+    if (Firebase.RTDB.getFloat(&fbdo, "/sensor/altura")) {
+      altura = fbdo.floatData();
+      // Serial.print("Altura lida do Firebase: ");
+      // Serial.println(altura);
+    } else {
+      Serial.println("Erro ao ler altura: " + fbdo.errorReason());
     }
+  }
 
-    // Verifica /sensor/altura
-    if (millis() - alturaCheckPrevMillis >= alturaCheckInterval) {
-      alturaCheckPrevMillis = millis();  // Atualiza o tempo anterior
-
-      if (Firebase.RTDB.getFloat(&fbdo, "/sensor/altura")) {
-        altura = fbdo.floatData();
-        Serial.print("Altura lida do Firebase: ");
-        Serial.println(altura);
-      } else {
-        Serial.println("Erro ao ler altura: " + fbdo.errorReason());
-      }
-    }
+  // Verifica se é hora de executar a "interrupção" de software
+  if (millis() - lastCheckMillis >= checkInterval) {
+    lastCheckMillis = millis();
+    checkMovement();
   }
 }
