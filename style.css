@@ -1,47 +1,114 @@
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    margin: 50px;
-    background-color: #f4f4f4;
-}
-
-h1 {
+    font-family: 'Arial', sans-serif;
+    background-color: #e9ecef;
     color: #333;
 }
 
-p {
-    font-size: 18px;
+h1 {
+    color: #2c3e50;
+    font-weight: bold;
 }
 
-.switch {
-    width: 80px;
-    height: 140px;
-    background: #ccc;
-    border-radius: 40px;
+.card {
+    border-radius: 10px;
+    transition: transform 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.badge {
+    font-size: 1rem;
+    padding: 8px 12px;
+}
+
+#volumeValue.bg-info {
+    transition: background-color 0.5s;
+}
+
+#volumeValue.bg-warning {
+    background-color: #ffc107;
+}
+
+#volumeValue.bg-danger {
+    background-color: #dc3545;
+}
+
+.btn-success, .btn-primary {
+    font-weight: bold;
+    padding: 10px;
+}
+
+.input-group input {
+    border-radius: 5px 0 0 5px;
+}
+
+.input-group button {
+    border-radius: 0 5px 5px 0;
+}
+
+#historicoList {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.list-group-item {
+    font-size: 0.9rem;
+    border: none;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Estilização da Lixeira */
+.lixeira-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 300px;
+}
+
+.lixeira {
+    width: 180px; /* Base mais larga no topo */
+    height: 220px;
+    background-color: #d3d3d3; /* Cinza claro para a parte não ocupada */
+    border: 5px solid #2c3e50;
+    border-radius: 30px 30px 15px 15px; /* Bordas mais arredondadas no topo */
+    clip-path: polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%); /* Topo largo, base estreita */
     position: relative;
-    cursor: pointer;
-    transition: background 0.3s;
-    margin: 20px auto;
-    box-shadow: inset 0px 5px 10px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
 }
 
-.switch-toggle {
+.preenchimento {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background-color: #28a745; /* Verde padrão */
+    transition: height 0.5s ease, background-color 0.5s ease;
+    clip-path: polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%); /* Mesma forma da lixeira */
+}
+
+.recycle-symbol {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 60px;
     height: 60px;
-    background: white;
-    border-radius: 50%;
-    position: absolute;
-    left: 10px;
-    bottom: 10px;
-    transition: bottom 0.3s, background 0.3s;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
+    opacity: 0.7;
 }
 
-.switch.on {
-    background: #4CAF50;
-}
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1.5rem;
+    }
 
-.switch.on .switch-toggle {
-    bottom: 70px;
-    background: #fafffa;
+    .lixeira {
+        width: 120px;
+        height: 160px;
+    }
+
+    .recycle-symbol {
+        width: 40px;
+        height: 40px;
+    }
 }
