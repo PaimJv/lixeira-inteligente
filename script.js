@@ -239,25 +239,42 @@ function ativacaoManual() {
         });
 }
 
-// Função para definir a altura no Firebase
+// // Função para definir a altura no Firebase
+// function definirAltura() {
+//     const alturaInputValue = alturaInput.value;
+//     const alturaValue = parseFloat(alturaInputValue);
+
+//     if (isNaN(alturaValue) || alturaInputValue.trim() === "") {
+//         alert("Por favor, digite um número válido para a altura.");
+//         return;
+//     }
+
+//     database.ref("sensor/altura").set(alturaValue)
+//         .then(() => {
+//             console.log("Altura definida com sucesso: " + alturaValue);
+//             alert("Altura definida com sucesso: " + alturaValue + " cm");
+//             alturaInput.value = "";
+//         })
+//         .catch((error) => {
+//             console.error("Erro ao definir altura: ", error);
+//             alert("Erro ao definir altura: " + error.message);
+//         });
+// }
+
+// Função para ativação manual (1 segundo)
 function definirAltura() {
-    const alturaInputValue = alturaInput.value;
-    const alturaValue = parseFloat(alturaInputValue);
-
-    if (isNaN(alturaValue) || alturaInputValue.trim() === "") {
-        alert("Por favor, digite um número válido para a altura.");
-        return;
-    }
-
-    database.ref("sensor/altura").set(alturaValue)
+    database.ref("sensor/novaLixeira").set(true)
         .then(() => {
-            console.log("Altura definida com sucesso: " + alturaValue);
-            alert("Altura definida com sucesso: " + alturaValue + " cm");
-            alturaInput.value = "";
+            console.log("Leitura da lixeira: true");
+            setTimeout(() => {
+                database.ref("sensor/novaLixeira").set(false)
+                    .then(() => console.log("Leitura da lixeira: false"))
+                    .catch((error) => console.error("Erro ao desativar:", error));
+            }, 1000);
         })
         .catch((error) => {
-            console.error("Erro ao definir altura: ", error);
-            alert("Erro ao definir altura: " + error.message);
+            console.error("Erro ao ativar:", error);
+            alert("Erro ao ativar: " + error.message);
         });
 }
 
