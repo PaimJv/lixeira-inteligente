@@ -17,18 +17,17 @@
             min-height: 240px;
         }
     </style>
+    <script>
+        // Verifica autenticação imediatamente
+        (function checkAuth() {
+            const isAuthenticated = localStorage.getItem('authToken') !== null;
+            if (!isAuthenticated) {
+                window.location.href = '/login.html';
+            }
+        })();
+    </script>
 </head>
 <body>
-    <script>
-        // Verifica se o usuário está autenticado
-        const isAuthenticated = localStorage.getItem('authToken') !== null;
-    
-        if (!isAuthenticated) {
-          // Redireciona para login.html se não estiver autenticado
-          window.location.href = '/login.html';
-        }
-      </script>
-    
     <!-- Tela do Sistema -->
     <div id="systemScreen" class="container my-5">
         <h1 class="text-center mb-4">🗑️ Lixeira Inteligente</h1>
