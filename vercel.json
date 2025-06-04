@@ -3,10 +3,13 @@
     {
       "source": "/",
       "destination": "/login.html"
-    },
+    }
+  ],
+  "redirects": [
     {
-      "source": "/index.html",
-      "destination": "/login.html"
+      "source": "/home.html",
+      "destination": "/login.html",
+      "permanent": false
     }
   ],
   "headers": [
