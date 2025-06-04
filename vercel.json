@@ -1,14 +1,23 @@
 {
-  "redirects": [
+  "rewrites": [
     {
       "source": "/",
-      "destination": "/login.html",
-      "permanent": true
+      "destination": "/login.html"
     },
     {
       "source": "/index.html",
-      "destination": "/login.html",
-      "permanent": true
+      "destination": "/login.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
   ]
 }
