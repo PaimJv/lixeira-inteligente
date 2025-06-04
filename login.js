@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (usuario === LOGIN_CREDENCIAIS.usuario && senha === LOGIN_CREDENCIAIS.senha) {
             loginError.style.display = "none";
             // Redirecionar para a página do sistema
-            window.location.href = "index.html";
+            window.location.href = "home.html";
         } else {
             loginError.style.display = "block";
         }
