@@ -3,6 +3,8 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 0;
+    margin: 0;
 }
 
 .container {
@@ -10,13 +12,18 @@ body {
     border-radius: 20px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
-    padding: 2rem;
+    padding: 1.5rem;
+    margin: 1rem auto;
+    max-width: 1200px;
+    width: calc(100% - 2rem);
 }
 
 h1 {
     color: #2c3e50;
     font-weight: 700;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    margin-bottom: 1.5rem;
 }
 
 /* Cards */
@@ -25,11 +32,16 @@ h1 {
     border-radius: 15px;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 1.5rem;
 }
 
 .card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-2px);
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-body {
+    padding: 1.25rem;
 }
 
 /* Lixeira */
@@ -37,16 +49,16 @@ h1 {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 40px 20px;
+    padding: clamp(20px, 5vw, 40px);
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     border-radius: 15px;
-    margin: 20px 0;
+    margin: 15px 0;
 }
 
 .lixeira {
     position: relative;
-    width: 180px;
-    height: 280px;
+    width: clamp(120px, 25vw, 180px);
+    height: clamp(180px, 40vw, 280px);
     background: linear-gradient(0deg, #34495e 0%, #2c3e50 100%);
     border-radius: 8px 8px 20px 20px;
     box-shadow: 
@@ -76,7 +88,7 @@ h1 {
     bottom: -25px;
     left: 50%;
     transform: translateX(-50%);
-    width: 50px;
+    width: clamp(35px, 8vw, 50px);
     height: 12px;
     background: linear-gradient(90deg, #95a5a6 0%, #7f8c8d 100%);
     border-radius: 8px;
@@ -114,8 +126,8 @@ h1 {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 50px;
-    height: 50px;
+    width: clamp(30px, 6vw, 50px);
+    height: clamp(30px, 6vw, 50px);
     opacity: 0.4;
     filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
     z-index: 10;
@@ -130,12 +142,13 @@ h1 {
 
 .info-card h5 {
     font-weight: 600;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
+    font-size: clamp(1rem, 3vw, 1.25rem);
 }
 
 /* Progress bars */
 .progress {
-    height: 25px;
+    height: clamp(20px, 4vw, 30px);
     border-radius: 15px;
     background: rgba(255, 255, 255, 0.2);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -145,25 +158,33 @@ h1 {
     border-radius: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     transition: width 0.6s ease;
+    font-size: clamp(0.8rem, 2.5vw, 1rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
 }
 
 /* Badges */
 .badge {
-    font-size: 0.9rem;
-    padding: 8px 15px;
+    font-size: clamp(0.75rem, 2.5vw, 0.9rem);
+    padding: clamp(6px, 2vw, 8px) clamp(10px, 3vw, 15px);
     border-radius: 20px;
     font-weight: 500;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
 }
 
 /* Botões */
 .btn {
     border-radius: 25px;
     font-weight: 600;
-    padding: 12px 25px;
+    padding: clamp(10px, 3vw, 12px) clamp(20px, 5vw, 25px);
     border: none;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     transition: all 0.3s ease;
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+    width: 100%;
 }
 
 .btn:hover {
@@ -184,9 +205,16 @@ h1 {
 .list-group-item {
     border: none;
     border-radius: 10px;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    padding: clamp(0.75rem, 3vw, 1rem);
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+}
+
+.list-group-item .badge {
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 /* Status badges com cores específicas */
@@ -221,39 +249,208 @@ h1 {
     animation: pulse 0.6s ease-in-out;
 }
 
-/* Responsividade */
-@media (max-width: 768px) {
-    .lixeira {
-        width: 140px;
-        height: 210px;
-    }
-    
-    .container {
-        margin: 1rem;
-        padding: 1rem;
-    }
-    
-    .lixeira-container {
-        padding: 20px 10px;
-    }
-    
-    .recycle-symbol {
-        width: 35px;
-        height: 35px;
-    }
+/* Estilo do ícone de ajuda */
+.help-icon {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(18px, 4vw, 22px);
+    height: clamp(18px, 4vw, 22px);
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    color: white;
+    border-radius: 50%;
+    font-size: clamp(10px, 2.5vw, 12px);
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+    z-index: 10;
 }
 
-@media (max-width: 576px) {
-    h1 {
-        font-size: 1.5rem;
+.help-icon:hover {
+    transform: scale(1.2);
+}
+
+/* Ajuste no card-body para evitar sobreposição */
+.card-body.position-relative {
+    padding-top: clamp(35px, 8vw, 45px);
+}
+
+/* Personalização do tooltip */
+.tooltip-inner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: clamp(12px, 2.5vw, 14px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    max-width: clamp(200px, 50vw, 300px);
+    text-align: center;
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: #667eea;
+}
+
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before {
+    border-bottom-color: #764ba2;
+}
+
+.tooltip.bs-tooltip-start .tooltip-arrow::before {
+    border-left-color: #667eea;
+}
+
+.tooltip.bs-tooltip-end .tooltip-arrow::before {
+    border-right-color: #764ba2;
+}
+
+/* Responsividade aprimorada */
+@media (max-width: 992px) {
+    .container {
+        margin: 0.5rem auto;
+        padding: 1rem;
+        width: calc(100% - 1rem);
     }
     
     .card-body {
         padding: 1rem;
     }
     
+    .info-card .col-md-6 {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        border-radius: 15px;
+        margin: 0.25rem auto;
+        width: calc(100% - 0.5rem);
+    }
+    
+    h1 {
+        margin-bottom: 1rem;
+    }
+    
+    .lixeira-container {
+        padding: 15px 10px;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    /* Ajustes para cards de informação em mobile */
+    .info-card .row .col-md-6 {
+        margin-bottom: 0.75rem;
+    }
+    
+    .info-card .row .col-md-6:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Status badges mais compactos em mobile */
+    .row .col-md-4 {
+        margin-bottom: 0.75rem;
+    }
+    
+    .row .col-md-4:last-child {
+        margin-bottom: 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .container {
+        border-radius: 10px;
+        padding: 0.75rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .lixeira-container {
+        padding: 10px 5px;
+        margin: 10px 0;
+    }
+    
+    /* Ajustes específicos para telas muito pequenas */
+    .list-group-item {
+        padding: 0.5rem;
+        margin-bottom: 5px;
+    }
+    
+    .list-group-item .badge {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+    }
+    
+    /* Botões em duas colunas em telas muito pequenas */
+    .d-grid.gap-3 {
+        gap: 0.75rem !important;
+    }
+}
+
+/* Ajustes para orientação paisagem em dispositivos móveis */
+@media (max-height: 500px) and (orientation: landscape) {
+    .container {
+        margin: 0.25rem auto;
+        padding: 0.5rem;
+    }
+    
+    h1 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .card {
+        margin-bottom: 0.5rem;
+    }
+    
+    .lixeira-container {
+        padding: 10px;
+    }
+    
+    .lixeira {
+        width: clamp(80px, 15vw, 120px);
+        height: clamp(120px, 25vw, 180px);
+    }
+}
+
+/* Melhorias para acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+    .card {
+        transition: none;
+    }
+    
     .btn {
-        padding: 10px 20px;
-        font-size: 0.9rem;
+        transition: none;
+    }
+    
+    .preenchimento {
+        transition: none;
+    }
+    
+    .badge:hover {
+        animation: none;
+    }
+}
+
+/* Ajustes para telas grandes */
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1300px;
+        padding: 2rem;
+    }
+    
+    .card-body {
+        padding: 2rem;
+    }
+    
+    .lixeira {
+        width: 200px;
+        height: 300px;
     }
 }
