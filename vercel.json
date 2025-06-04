@@ -3,17 +3,10 @@
     {
       "source": "/",
       "destination": "/login.html"
-    }
-  ],
-  "headers": [
+    },
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
+      "source": "/index.html",
+      "destination": "/login.html"
     }
   ]
 }
