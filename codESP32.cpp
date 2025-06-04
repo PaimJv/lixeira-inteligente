@@ -46,7 +46,9 @@ const unsigned long alturaCheckInterval = 2000;         // Intervalo de 2000 ms 
 
 // Variáveis para controle de tempo parado
 unsigned long stillStartTime = 0;                  // Tempo em que o sensor ficou parado
-const unsigned long stillDurationRequired = 3000;  // 3 segundos
+
+// TEMPO DE SENSOR PARADO
+const unsigned long stillDurationRequired = 5000;  // 3 segundos
 const unsigned long stillDurationTolerance = 100;  // Tolerância de ±100 ms
 bool comandoEnviado = false;                       // Flag para evitar múltiplos envios
 
@@ -156,7 +158,7 @@ void setup() {
 }
 
 void loop() {
-    if (Firebase.ready() && (millis() - sendDataPrevMillis > 1000 || sendDataPrevMillis == 0)) {
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > 1000 || sendDataPrevMillis == 0)) {
     sendDataPrevMillis = millis();
 
     ativarSistema();
@@ -165,7 +167,7 @@ void loop() {
       medicao();
 
       if (altura >= distancia) {
-        volume = (altura - distancia)/altura*100;
+        volume = (altura - distancia) / altura * 100;
       }
 
       if (volume >= 0 && volume <= 100) {  // Verifica se a medição é válida
@@ -270,18 +272,57 @@ void ativarSistema() {
     }
   }
 
-  // Verifica /sensor/altura
-  if (millis() - alturaCheckPrevMillis >= alturaCheckInterval) {
-    alturaCheckPrevMillis = millis();  // Atualiza o tempo anterior
+  // // Verifica /sensor/altura
+  // if (millis() - alturaCheckPrevMillis >= alturaCheckInterval) {
+  //   alturaCheckPrevMillis = millis();  // Atualiza o tempo anterior
 
-    if (Firebase.RTDB.getFloat(&fbdo, "/sensor/altura")) {
-      altura = fbdo.floatData();
-      // Serial.print("Altura lida do Firebase: ");
-      // Serial.println(altura);
+  //   if (Firebase.RTDB.getFloat(&fbdo, "/sensor/altura")) {
+  //     altura = fbdo.floatData();
+  //     // Serial.print("Altura lida do Firebase: ");
+  //     // Serial.println(altura);
+  //   } else {
+  //     Serial.println("Erro ao ler altura: " + fbdo.errorReason());
+  //   }
+  // }
+
+// Verifica /sensor/novaLixeira
+  if (millis() - alturaCheckPrevMillis >= alturaCheckInterval) {
+    alturaCheckPrevMillis = millis();
+    if (Firebase.RTDB.getBool(&fbdo, "/sensor/novaLixeira")) {
+      bool restaurarLixeira = fbdo.boolData();
+      Serial.print("novaLixeira lida do Firebase: ");
+      Serial.println(restaurarLixeira);
+      if (restaurarLixeira) {
+        medicao();
+        Serial.print("Medição realizada, distancia: ");
+        Serial.print(distancia);
+        Serial.println(" cm");
+        if (distancia >= 0) {
+          altura = distancia;
+          Serial.print("Altura atualizada: ");
+          Serial.print(altura);
+          Serial.println(" cm");
+          // Envia altura para /sensor/altura
+          if (Firebase.RTDB.setFloat(&fbdo, "/sensor/altura", altura)) {
+            Serial.println("Altura enviada ao Firebase com sucesso");
+          } else {
+            Serial.println("Erro ao enviar altura: " + fbdo.errorReason());
+          }
+          // Reseta novaLixeira para false
+          if (Firebase.RTDB.setBool(&fbdo, "/sensor/novaLixeira", false)) {
+            Serial.println("novaLixeira resetada para false");
+          } else {
+            Serial.println("Erro ao resetar novaLixeira: " + fbdo.errorReason());
+          }
+        } else {
+          Serial.println("Erro: Distancia inválida, altura não atualizada");
+        }
+      }
     } else {
-      Serial.println("Erro ao ler altura: " + fbdo.errorReason());
+      Serial.println("Erro ao ler novaLixeira: " + fbdo.errorReason());
     }
   }
+
 
   // Verifica se é hora de executar a "interrupção" de software
   if (millis() - lastCheckMillis >= checkInterval) {
