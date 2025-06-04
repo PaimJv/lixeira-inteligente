@@ -1,4 +1,11 @@
 document.addEventListener("DOMContentLoaded", function () {
+    // Verificar se firebase está definido
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase SDK não carregado. Verifique os scripts em login.html.');
+        alert('Erro: Firebase não carregado. Verifique sua conexão ou recarregue a página.');
+        return;
+    }
+
     const firebaseConfig = {
         apiKey: "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0",
         authDomain: "lixeira-inteligente-esp32.firebaseapp.com",
@@ -15,13 +22,19 @@ document.addEventListener("DOMContentLoaded", function () {
     const loginBtn = document.getElementById("loginBtn");
     const loginError = document.getElementById("loginError");
 
+    // Depuração: Verificar elementos
+    console.log('Elementos encontrados:', { loginInput, passwordInput, loginBtn, loginError });
+
     function autenticar() {
         const usuario = loginInput.value.trim();
         const senha = passwordInput.value.trim();
 
+        console.log('Tentando autenticar com:', { usuario, senha: '***' });
+
         if (!usuario || !senha) {
             loginError.style.display = "block";
             loginError.textContent = "Por favor, preencha todos os campos.";
+            console.log('Campos vazios detectados');
             return;
         }
 
@@ -29,20 +42,52 @@ document.addEventListener("DOMContentLoaded", function () {
             .then((userCredential) => {
                 console.log('Autenticado com sucesso:', userCredential.user.email);
                 loginError.style.display = "none";
-                window.location.href = "home.html";
+                console.log('Redirecionando para home.html');
+                window.location.href = "/home.html";
             })
             .catch((error) => {
                 console.error('Erro de autenticação:', error.code, error.message);
                 loginError.style.display = "block";
-                loginError.textContent = "Usuário ou senha incorretos.";
+                loginError.textContent = obterMensagemErro(error.code);
             });
     }
 
-    loginBtn.addEventListener("click", autenticar);
-    passwordInput.addEventListener("keypress", (event) => {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            autenticar();
+    // Função para mensagens de erro personalizadas
+    function obterMensagemErro(codigoErro) {
+        const mensagens = {
+            'auth/invalid-email': 'E-mail inválido.',
+            'auth/user-not-found': 'Usuário não encontrado.',
+            'auth/wrong-password': 'Senha incorreta.',
+            'auth/invalid-credential': 'Credenciais inválidas.',
+            'auth/network-request-failed': 'Falha na conexão. Verifique sua internet.',
+            'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.'
+        };
+        return mensagens[codigoErro] || `Erro: ${codigoErro}`;
+    }
+
+    // Verificar estado de autenticação
+    firebase.auth().onAuthStateChanged(user => {
+        console.log('Estado de autenticação:', user ? user.email : 'Nenhum usuário');
+        if (user) {
+            console.log('Usuário já autenticado, redirecionando para home.html');
+            window.location.href = "/home.html";
         }
     });
+
+    if (loginBtn) {
+        loginBtn.addEventListener("click", autenticar);
+        console.log('Evento de clique registrado no botão de login');
+    } else {
+        console.error('Botão de login não encontrado');
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener("keypress", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                autenticar();
+                console.log('Enter pressionado no campo de senha');
+            }
+        });
+    }
 });
