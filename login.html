@@ -1,33 +1,86 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Lixeira Inteligente</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <script src="login.js" defer></script>
-</head>
-<body>
-    <!-- Tela de Login -->
-    <div id="loginScreen" class="container my-5 d-flex justify-content-center align-items-center" style="min-height: 100vh; display: block;">
-        <div class="card shadow-sm" style="width: 100%; max-width: 400px;">
-            <div class="card-body">
-                <h3 class="text-center mb-4">Login</h3>
-                <div class="mb-3">
-                    <label for="loginInput" class="form-label">Usuário</label>
-                    <input type="text" id="loginInput" class="form-control" placeholder="Digite o usuário">
-                </div>
-                <div class="mb-3">
-                    <label for="passwordInput" class="form-label">Senha</label>
-                    <input type="password" id="passwordInput" class="form-control" placeholder="Digite a senha">
-                </div>
-                <button id="loginBtn" class="btn btn-primary w-100">Entrar</button>
-                <p id="loginError" class="text-danger text-center mt-3" style="display: none;">Usuário ou senha incorretos.</p>
-            </div>
-        </div>
-    </div>
+document.addEventListener("DOMContentLoaded", function () {
+    const firebaseConfig = {
+        apiKey: "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0",
+        authDomain: "lixeira-inteligente-esp32.firebaseapp.com",
+        databaseURL: "https://lixeira-inteligente-esp32-default-rtdb.firebaseio.com",
+        projectId: "lixeira-inteligente-esp32",
+        storageBucket: "lixeira-inteligente-esp32.appspot.com",
+        messagingSenderId: "14562674613",
+        appId: "1:14562674613:web:c42a81951431c6f70b7bfc"
+    };
+    firebase.initializeApp(firebaseConfig);
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    const loginInput = document.getElementById("loginInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const loginBtn = document.getElementById("loginBtn");
+    const loginError = document.getElementById("loginError");
+
+    // Depuração: Verificar elementos
+    console.log('Elementos encontrados:', { loginInput, passwordInput, loginBtn, loginError });
+
+    function autenticar() {
+        const usuario = loginInput.value.trim();
+        const senha = passwordInput.value.trim();
+
+        console.log('Tentando autenticar com:', { usuario, senha: '***' });
+
+        if (!usuario || !senha) {
+            loginError.style.display = "block";
+            loginError.textContent = "Por favor, preencha todos os campos.";
+            console.log('Campos vazios detectados');
+            return;
+        }
+
+        firebase.auth().signInWithEmailAndPassword(usuario, senha)
+            .then((userCredential) => {
+                console.log('Autenticado com sucesso:', userCredential.user.email);
+                loginError.style.display = "none";
+                console.log('Redirecionando para home.html');
+                window.location.href = "/home.html"; // Garantir caminho absoluto
+            })
+            .catch((error) => {
+                console.error('Erro de autenticação:', error.code, error.message);
+                loginError.style.display = "block";
+                loginError.textContent = obterMensagemErro(error.code);
+            });
+    }
+
+    // Função para mensagens de erro personalizadas
+    function obterMensagemErro(codigoErro) {
+        const mensagens = {
+            'auth/invalid-email': 'E-mail inválido.',
+            'auth/user-not-found': 'Usuário não encontrado.',
+            'auth/wrong-password': 'Senha incorreta.',
+            'auth/invalid-credential': 'Credenciais inválidas.',
+            'auth/network-request-failed': 'Falha na conexão. Verifique sua internet.',
+            'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.'
+        };
+        return mensagens[codigoErro] || `Erro: ${codigoErro}`;
+    }
+
+    // Verificar estado de autenticação
+    firebase.auth().onAuthStateChanged(user => {
+        console.log('Estado de autenticação:', user ? user.email : 'Nenhum usuário');
+        if (user) {
+            console.log('Usuário já autenticado, redirecionando para home.html');
+            window.location.href = "/home.html";
+        }
+    });
+
+    if (loginBtn) {
+        loginBtn.addEventListener("click", autenticar);
+        console.log('Evento de clique registrado no botão de login');
+    } else {
+        console.error('Botão de login não encontrado');
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener("keypress", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                autenticar();
+                console.log('Enter pressionado no campo de senha');
+            }
+        });
+    }
+});
