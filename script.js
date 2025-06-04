@@ -31,6 +31,11 @@ document.addEventListener("DOMContentLoaded", function () {
     let ultimoVolume = 0; // Último volume registrado
     let inicioEsvaziamentoTimestamp = null; // Timestamp quando o volume sai de 0%
 
+    // Verifica se o usuário está autenticado
+    const isAuthenticated = localStorage.getItem('authToken') !== null;
+
+
+
     // Função para atualizar as cores do preenchimento
     function atualizarCorPreenchimento(volume) {
         // Limpar todas as propriedades de background

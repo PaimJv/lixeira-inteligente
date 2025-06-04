@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (usuario === LOGIN_CREDENCIAIS.usuario && senha === LOGIN_CREDENCIAIS.senha) {
             loginError.style.display = "none";
+            localStorage.setItem('authToken', 'exemplo-token');
             // Redirecionar para a página do sistema
             window.location.href = "home.html";
         } else {
