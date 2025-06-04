@@ -4,42 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Lixeira Inteligente</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <style>
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .error-message {
-            display: none;
-            color: red;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-    </style>
+    <script src="login.js" defer></script>
 </head>
 <body>
-    <div class="login-container">
-        <h2 class="text-center mb-4">🗑️ Login</h2>
-        <div class="mb-3">
-            <label for="loginInput" class="form-label">E-mail</label>
-            <input type="email" class="form-control" id="loginInput" placeholder="Digite seu e-mail" autocomplete="email">
+    <!-- Tela de Login -->
+    <div id="loginScreen" class="container my-5 d-flex justify-content-center align-items-center" style="min-height: 100vh; display: block;">
+        <div class="card shadow-sm" style="width: 100%; max-width: 400px;">
+            <div class="card-body">
+                <h3 class="text-center mb-4">Login</h3>
+                <div class="mb-3">
+                    <label for="loginInput" class="form-label">Usuário</label>
+                    <input type="text" id="loginInput" class="form-control" placeholder="Digite o usuário">
+                </div>
+                <div class="mb-3">
+                    <label for="passwordInput" class="form-label">Senha</label>
+                    <input type="password" id="passwordInput" class="form-control" placeholder="Digite a senha">
+                </div>
+                <button id="loginBtn" class="btn btn-primary w-100">Entrar</button>
+                <p id="loginError" class="text-danger text-center mt-3" style="display: none;">Usuário ou senha incorretos.</p>
+            </div>
         </div>
-        <div class="mb-3">
-            <label for="passwordInput" class="form-label">Senha</label>
-            <input type="password" class="form-control" id="passwordInput" placeholder="Digite sua senha" autocomplete="current-password">
-        </div>
-        <button id="loginBtn" class="btn btn-primary w-100">Entrar</button>
-        <p id="loginError" class="error-message"></p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="login.js"></script>
 </body>
 </html>
