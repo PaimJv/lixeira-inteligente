@@ -31,10 +31,12 @@ document.addEventListener("DOMContentLoaded", function () {
     let ultimoVolume = 0; // Último volume registrado
     let inicioEsvaziamentoTimestamp = null; // Timestamp quando o volume sai de 0%
 
-    // Verifica se o usuário está autenticado
-    const isAuthenticated = localStorage.getItem('authToken') !== null;
-
-
+    // Verifica autenticação imediatamente
+    firebase.auth().onAuthStateChanged(user => {
+        if (!user) {
+            window.location.href = '/login.html';
+        }
+    });
 
     // Função para atualizar as cores do preenchimento
     function atualizarCorPreenchimento(volume) {
