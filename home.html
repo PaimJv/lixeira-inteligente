@@ -17,21 +17,34 @@
             min-height: 240px;
         }
     </style>
+    <script>
+        // Inicializar Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0",
+            authDomain: "lixeira-inteligente-esp32.firebaseapp.com",
+            databaseURL: "https://lixeira-inteligente-esp32-default-rtdb.firebaseio.com",
+            projectId: "lixeira-inteligente-esp32",
+            storageBucket: "lixeira-inteligente-esp32.appspot.com",
+            messagingSenderId: "14562674613",
+            appId: "1:14562674613:web:c42a81951431c6f70b7bfc"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        // Verifica autenticação imediatamente
+        firebase.auth().onAuthStateChanged(user => {
+            console.log('Usuário Firebase:', user);
+            if (!user) {
+                console.log('Nenhum usuário autenticado, redirecionando para login.html');
+                window.location.href = '/login.html';
+            }
+        });
+    </script>
 </head>
 <body>
-    <script>
-        // Verifica se o usuário está autenticado
-        const isAuthenticated = localStorage.getItem('authToken') !== null;
-    
-        if (!isAuthenticated) {
-          // Redireciona para login.html se não estiver autenticado
-          window.location.href = '/login.html';
-        }
-      </script>
-    
     <!-- Tela do Sistema -->
     <div id="systemScreen" class="container my-5">
         <h1 class="text-center mb-4">🗑️ Lixeira Inteligente</h1>
+        <button id="logoutBtn" class="btn btn-secondary mb-4">Sair</button>
 
         <!-- Card de Status -->
         <div class="card mb-4 shadow-sm">
@@ -146,7 +159,6 @@
                             <input type="number" id="userInput" class="form-control" placeholder="Digite a altura da lixeira" min="10" max="100">
                             <button class="btn btn-primary rounded-end-pill" onclick="definirAltura()">Enviar</button>
                         </div>
-                        <!-- Espaço adicional para igualar altura -->
                         <div style="height: 50px;"></div>
                     </div>
                 </div>

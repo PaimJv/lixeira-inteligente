@@ -1,7 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // Inicializar Firebase
     const firebaseConfig = {
-        // Substitua com sua configuração do Firebase
         apiKey: "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0",
         authDomain: "lixeira-inteligente-esp32.firebaseapp.com",
         databaseURL: "https://lixeira-inteligente-esp32-default-rtdb.firebaseio.com",
@@ -12,30 +10,34 @@ document.addEventListener("DOMContentLoaded", function () {
     };
     firebase.initializeApp(firebaseConfig);
 
-    // Elementos da tela de login
     const loginInput = document.getElementById("loginInput");
     const passwordInput = document.getElementById("passwordInput");
     const loginBtn = document.getElementById("loginBtn");
     const loginError = document.getElementById("loginError");
 
-    // Função para autenticar com Firebase
     function autenticar() {
         const usuario = loginInput.value.trim();
         const senha = passwordInput.value.trim();
 
+        if (!usuario || !senha) {
+            loginError.style.display = "block";
+            loginError.textContent = "Por favor, preencha todos os campos.";
+            return;
+        }
+
         firebase.auth().signInWithEmailAndPassword(usuario, senha)
             .then((userCredential) => {
+                console.log('Autenticado com sucesso:', userCredential.user.email);
                 loginError.style.display = "none";
-                // Redirecionar para a página do sistema
                 window.location.href = "home.html";
             })
             .catch((error) => {
+                console.error('Erro de autenticação:', error.code, error.message);
                 loginError.style.display = "block";
-                loginError.textContent = "Erro: " + error.message;
+                loginError.textContent = "Usuário ou senha incorretos.";
             });
     }
 
-    // Eventos
     loginBtn.addEventListener("click", autenticar);
     passwordInput.addEventListener("keypress", (event) => {
         if (event.key === "Enter") {
