@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", function () {
         firebase.database().ref("sensor/ativacaoManual").set(true)
             .then(() => {
                 console.log("Ativado por 1 segundo");
-                sistemaStatus.textContent = "Ativado";
+                sistemaStatus.textContent = "Ativada";
                 sistemaStatus.className = "badge bg-success";
 
                 setTimeout(() => {
@@ -246,7 +246,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 firebase.database().ref("sensor/ativacaoManual").set(true)
                     .then(() => {
                         console.log("Ativado por 1 segundo para recalcular altura");
-                        sistemaStatus.textContent = "Ativado";
+                        sistemaStatus.textContent = "Ativada";
                         sistemaStatus.className = "badge bg-success";
 
                         setTimeout(() => {
@@ -344,7 +344,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                             // Indicar que uma leitura está acontecendo
                             console.log("Ativado por 1 segundo (leitura automática de volume)");
-                            sistemaStatus.textContent = "Ativado";
+                            sistemaStatus.textContent = "Ativada";
                             sistemaStatus.className = "badge bg-success";
 
                             // Voltar para "Desativada" após 1 segundo
@@ -473,7 +473,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             console.log("Estado atual da ativação manual:", estado);
                             sistemaStatus.textContent = estado ? "Ativada" : "Desativada";
                             sistemaStatus.className = `badge bg-${estado ? "success" : "danger"}`;
-                            console.log("Interface atualizada - Status:", estado ? "Ativado" : "Desativada");
+                            console.log("Interface atualizada - Status:", estado ? "Ativada" : "Desativada");
                         });
 
                         database.ref("sensor/altura").on("value", (snapshot) => {
