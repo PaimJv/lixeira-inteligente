@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else if (entry.type === "ativação") {
                     li.innerHTML = `
                         <div>
-                            <strong>LEITURA Ativada</strong>
+                            <strong>Leitura Ativada</strong>
                             <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
                         </div>`;
                     badgeClass = "bg-success";
