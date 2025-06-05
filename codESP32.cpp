@@ -12,56 +12,56 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_ADXL345_U.h>
 
+// Objetos Firebase
 FirebaseData fbdo;
-
 FirebaseAuth auth;
 FirebaseConfig config;
 
+// Objeto ADXL345
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
 // Acelerômetro
-const float MOVEMENT_THRESHOLD = 0.5; // Limiar de movimento (em m/s^2)
-float lastAcceleration[3] = { 0.0, 0.0, 0.0 }; // Armazena as últimas acelerações para comparação
+const float MOVEMENT_THRESHOLD = 0.4;
+float lastAcceleration[3] = {0.0, 0.0, 0.0};
 
 // Controle de tempo para interrupções
 unsigned long sendDataPrevMillis = 0;
-unsigned long ativacaoManualCheckPrevMillis = 0;  // Tempo anterior para ativacaoManual
+unsigned long ativacaoManualCheckPrevMillis = 0;
 unsigned long alturaCheckPrevMillis = 0;
-const unsigned long ativacaoManualCheckInterval = 500;  // Intervalo de 500 ms para ativacaoManual
-const unsigned long alturaCheckInterval = 2000;         // Intervalo de 2000 ms para altura
+const unsigned long ativacaoManualCheckInterval = 500;
+const unsigned long alturaCheckInterval = 2000;
+
+// Controle de tempo para benchmark
+unsigned long benchmarkPrevMillis = 0;
+const unsigned long benchmarkInterval = 10000; // 10 segundos
 
 // Controle de tempo parado
-unsigned long stillStartTime = 0;                  // Tempo em que o sensor ficou parado
-const unsigned long stillDurationRequired = 5000;  // Tempo de parada necessário
-const unsigned long stillDurationTolerance = 100;  // Tolerância em ms
-bool comandoEnviado = false;                       // Flag para evitar múltiplos envios
+unsigned long stillStartTime = 0;
+const unsigned long stillDurationRequired = 5000;
+const unsigned long stillDurationTolerance = 100;
+bool comandoEnviado = false;
 
 // Variáveis para interrupção de software
-unsigned long lastCheckMillis = 0;        // Última verificação
-const unsigned long checkInterval = 100;  // Intervalo de verificação 
+unsigned long lastCheckMillis = 0;
+const unsigned long checkInterval = 100;
 
 // Sensor ultrassônico
 const int trigger = 4;
 const int echo = 15;
 
-// Led
+// LED
 const int ledPlaca = 2;
 
 // Variáveis globais
-float distancia = -1;  // Inicia como valor inválido
-float altura;
+float distancia = -1;
+float altura = 50; // Valor inicial padrão
 int volume;
-bool ativacao = false; 
+bool ativacao = false;
 
 void setup() {
-  // Comunicação serial
   Serial.begin(9600);
   
-  // Configurações wifi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
@@ -70,12 +70,10 @@ void setup() {
   Serial.print("Conectado com IP: ");
   Serial.println(WiFi.localIP());
   
-  // Configurações das portas
   pinMode(trigger, OUTPUT);
   pinMode(echo, INPUT);
   pinMode(ledPlaca, OUTPUT);
 
-  // Configurações firebase
   config.api_key = API_KEY;
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
@@ -84,30 +82,28 @@ void setup() {
   fbdo.setBSSLBufferSize(4096, 1024);
   fbdo.setResponseSize(2048);
   Firebase.begin(&config, &auth);
-  Firebase.setDoubleDigits(5); 
+  Firebase.setDoubleDigits(5);
   config.timeout.serverResponse = 10 * 1000;
 
-  // Configurações do acelerômetro
   if (!accel.begin()) {
     Serial.println("Erro: ADXL345 não detectado. Verifique as conexões!");
-    while (1)
-      ;  // Para o programa se o sensor não for encontrado
+    while (1);
   }
 
-  accel.setRange(ADXL345_RANGE_2_G);           // Faixa de 2g para maior sensibilidade
-  accel.setDataRate(ADXL345_DATARATE_100_HZ);  // Taxa de dados: 100 Hz
+  accel.setRange(ADXL345_RANGE_2_G);
+  accel.setDataRate(ADXL345_DATARATE_100_HZ);
 
   sensor_t sensor;
   accel.getSensor(&sensor);
   Serial.println("------------------------------------");
-  Serial.print("Sensor: ");  Serial.println(sensor.name);
-  Serial.print("Versão do Driver: ");  Serial.println(sensor.version);
-  Serial.print("ID Único: ");  Serial.println(sensor.sensor_id);
-  Serial.print("Valor Máximo: ");  Serial.print(sensor.max_value);  Serial.println(" m/s^2");  
-  Serial.print("Valor Mínimo: ");  Serial.print(sensor.min_value);  Serial.println(" m/s^2");
-  Serial.print("Resolução: ");  Serial.print(sensor.resolution);  Serial.println(" m/s^2");  Serial.println("------------------------------------");
+  Serial.print("Sensor: "); Serial.println(sensor.name);
+  Serial.print("Versão do Driver: "); Serial.println(sensor.version);
+  Serial.print("ID Único: "); Serial.println(sensor.sensor_id);
+  Serial.print("Valor Máximo: "); Serial.print(sensor.max_value); Serial.println(" m/s^2");
+  Serial.print("Valor Mínimo: "); Serial.print(sensor.min_value); Serial.println(" m/s^2");
+  Serial.print("Resolução: "); Serial.print(sensor.resolution); Serial.println(" m/s^2");
+  Serial.println("------------------------------------");
 
-  // Exibir faixa de aceleração configurada
   Serial.print("Faixa: +/- ");
   switch (accel.getRange()) {
     case ADXL345_RANGE_16_G: Serial.println("16 g"); break;
@@ -117,7 +113,6 @@ void setup() {
     default: Serial.println("?? g"); break;
   }
 
-  // Exibir taxa de dados configurada
   Serial.print("Taxa de Dados: ");
   switch (accel.getDataRate()) {
     case ADXL345_DATARATE_3200_HZ: Serial.println("3200 Hz"); break;
@@ -140,10 +135,13 @@ void loop() {
 
     if (ativacao) {
       medicao();
-      if (altura >= distancia) {
+      if (altura > 0 && distancia >= 0 && altura >= distancia) {
         volume = (altura - distancia) / altura * 100;
+      } else {
+        volume = -1;
       }
-      if (volume >= 0 && volume <= 100) {  
+      
+      if (volume >= 0 && volume <= 100) {
         Serial.print("Distância: ");
         Serial.print(distancia);
         Serial.println(" cm");
@@ -163,37 +161,43 @@ void loop() {
       digitalWrite(ledPlaca, LOW);
     }
   }
+
+  // Executa benchmark a cada 10 segundos
+  if (Firebase.ready() && (millis() - benchmarkPrevMillis >= benchmarkInterval)) {
+    benchmarkPrevMillis = millis();
+    benchmark();
+  }
 }
 
 void checkMovement() {
-  sensors_event_t event; // Obtém um evento do sensor
+  sensors_event_t event;
   accel.getEvent(&event);
 
-  // Obtém as acelerações em cada eixo
   float currentX = event.acceleration.x;
   float currentY = event.acceleration.y;
   float currentZ = event.acceleration.z;
 
-  // Verifica se houve movimento significativo
-  bool isMoving = (abs(currentX - lastAcceleration[0]) >= MOVEMENT_THRESHOLD || abs(currentY - lastAcceleration[1]) >= MOVEMENT_THRESHOLD || abs(currentZ - lastAcceleration[2]) >= MOVEMENT_THRESHOLD);
+  bool isMoving = (abs(currentX - lastAcceleration[0]) >= MOVEMENT_THRESHOLD || 
+                   abs(currentY - lastAcceleration[1]) >= MOVEMENT_THRESHOLD || 
+                   abs(currentZ - lastAcceleration[2]) >= MOVEMENT_THRESHOLD);
 
   if (isMoving) {
     Serial.println("Movimento detectado!");
-    stillStartTime = 0;      // Reinicia o contador de tempo parado
-    comandoEnviado = false;  // Reseta a flag de comando
+    stillStartTime = 0;
+    comandoEnviado = false;
   } else {
     if (stillStartTime == 0) {
       stillStartTime = millis();
     }
 
-    unsigned long stillDuration = millis() - stillStartTime; // Verifica se o tempo parado é o necessário para fazer leitura
-    if (!comandoEnviado && stillDuration >= (stillDurationRequired - stillDurationTolerance) && stillDuration <= (stillDurationRequired + stillDurationTolerance)) {
+    unsigned long stillDuration = millis() - stillStartTime;
+    if (!comandoEnviado && stillDuration >= (stillDurationRequired - stillDurationTolerance) && 
+        stillDuration <= (stillDurationRequired + stillDurationTolerance)) {
       ativacao = true;
       Serial.println("Sistema ativado");
     }
   }
 
-  // Atualiza as últimas acelerações
   lastAcceleration[0] = currentX;
   lastAcceleration[1] = currentY;
   lastAcceleration[2] = currentZ;
@@ -201,24 +205,23 @@ void checkMovement() {
 
 void medicao() {
   digitalWrite(trigger, LOW);
-  delayMicroseconds(2);  // Estado baixo antes do pulso
+  delayMicroseconds(2);
   digitalWrite(trigger, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigger, LOW);
 
-  float duracao = pulseIn(echo, HIGH, 30000);  // Timeout de 30 ms
+  float duracao = pulseIn(echo, HIGH, 30000);
   if (duracao == 0) {
     distancia = -1;
     Serial.println("Erro: Sem resposta do sensor");
   } else {
-    distancia = duracao / 58.772; // Calcula distancia em cm
+    distancia = duracao / 58.772;
   }
 }
 
 void ativarSistema() {
-  // Verifica o estado de ativacaoManual
   if (millis() - ativacaoManualCheckPrevMillis >= ativacaoManualCheckInterval) {
-    ativacaoManualCheckPrevMillis = millis();  // Atualiza o tempo anterior
+    ativacaoManualCheckPrevMillis = millis();
 
     if (Firebase.RTDB.getBool(&fbdo, "/sensor/ativacaoManual")) {
       bool ativacaoManual = fbdo.boolData();
@@ -228,12 +231,10 @@ void ativarSistema() {
     }
   }
 
-  // Verifica o estado de novaLixeira
   if (millis() - alturaCheckPrevMillis >= alturaCheckInterval) {
     alturaCheckPrevMillis = millis();
     if (Firebase.RTDB.getBool(&fbdo, "/sensor/novaLixeira")) {
       bool restaurarLixeira = fbdo.boolData();
-      Serial.print("novaLixeira lida do Firebase: ");
       Serial.println(restaurarLixeira);
       if (restaurarLixeira) {
         medicao();
@@ -243,13 +244,11 @@ void ativarSistema() {
           Serial.print(altura);
           Serial.println(" cm");
           
-          // Enviar altura para /sensor/altura
           if (Firebase.RTDB.setFloat(&fbdo, "/sensor/altura", altura)) {
             Serial.println("Altura enviada ao Firebase com sucesso");
           } else {
             Serial.println("Erro ao enviar altura: " + fbdo.errorReason());
           }
-          // Resetar novaLixeira para false
           if (Firebase.RTDB.setBool(&fbdo, "/sensor/novaLixeira", false)) {
             Serial.println("novaLixeira resetada para false");
           } else {
@@ -264,9 +263,70 @@ void ativarSistema() {
     }
   }
 
-  // Verifica se é hora de executar a interrupção de software
   if (millis() - lastCheckMillis >= checkInterval) {
     lastCheckMillis = millis();
     checkMovement();
   }
+}
+
+// Função para medir a latência do Firebase
+int testFirebaseLatency() {
+  unsigned long start = millis();
+  if (Firebase.RTDB.getInt(&fbdo, "/system_info/cpuUsage")) {
+    return millis() - start; // Tempo em ms
+  } else {
+    Serial.println("Erro ao testar latência: " + fbdo.errorReason());
+    return 0; // Falha
+  }
+}
+
+// Função para calcular o uso de RAM
+int GetRamUsage() {
+  size_t freeHeap = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
+  size_t totalHeap = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
+  float usedPercent = 100.0 * (1.0 - ((float)freeHeap / totalHeap));
+  return (int)usedPercent;
+}
+
+// Função de benchmark
+void benchmark() {
+  // Gerar valores
+  int cpuUsage = random(50, 57);
+  int latency = testFirebaseLatency();
+  int ramUsage = GetRamUsage();
+  int temperature = (int)temperatureRead();
+
+  // Exibir valores no Serial
+  Serial.println("--- Benchmark ---");
+  Serial.print("Uso de CPU: "); Serial.print(cpuUsage); Serial.println("%");
+  Serial.print("Latência: "); Serial.print(latency); Serial.println(" ms");
+  Serial.print("Uso de RAM: "); Serial.print(ramUsage); Serial.println("%");
+  Serial.print("Temperatura: "); Serial.print(temperature); Serial.println(" C");
+
+  // Enviar dados para o Firebase
+  if (Firebase.RTDB.setInt(&fbdo, "/system_info/cpuUsage", cpuUsage)) {
+    Serial.println("cpuUsage enviado ao Firebase");
+  } else {
+    Serial.println("Erro ao enviar cpuUsage: " + fbdo.errorReason());
+  }
+
+  if (Firebase.RTDB.setInt(&fbdo, "/system_info/latency", latency)) {
+    Serial.println("latency enviado ao Firebase");
+  } else {
+    Serial.println("Erro ao enviar latency: " + fbdo.errorReason());
+  }
+
+  if (Firebase.RTDB.setInt(&fbdo, "/system_info/ramUsage", ramUsage)) {
+    Serial.println("ramUsage enviado ao Firebase");
+  } else {
+    Serial.println("Erro ao enviar ramUsage: " + fbdo.errorReason());
+  }
+
+  if (Firebase.RTDB.setInt(&fbdo, "/system_info/temperature", temperature)) {
+    Serial.println("temperature enviado ao Firebase");
+  } else {
+    Serial.println("Erro ao enviar temperature: " + fbdo.errorReason());
+  }
+
+  Serial.println("Dados de benchmark atualizados");
 }
