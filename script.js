@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else if (entry.type === "ativação") {
                     li.innerHTML = `
                         <div>
-                            <strong>Sistema Ativado</strong>
+                            <strong>LEITURA Ativada</strong>
                             <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
                         </div>`;
                     badgeClass = "bg-success";
@@ -195,14 +195,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
         firebase.database().ref("sensor/ativacaoManual").set(true)
             .then(() => {
-                console.log("Ativação manual: ATIVADO por 1 segundo");
+                console.log("Ativado por 1 segundo");
                 sistemaStatus.textContent = "Ativado";
                 sistemaStatus.className = "badge bg-success";
 
                 setTimeout(() => {
                     firebase.database().ref("sensor/ativacaoManual").set(false)
                         .then(() => {
-                            console.log("Ativação manual: DESATIVADO após 1 segundo");
+                            console.log("Desativado após 1 segundo");
                             sistemaStatus.textContent = "Desativado";
                             sistemaStatus.className = "badge bg-danger";
                         })
@@ -245,7 +245,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Acionar ativação manual para recalcular altura
                 firebase.database().ref("sensor/ativacaoManual").set(true)
                     .then(() => {
-                        console.log("Ativação manual para recalcular altura: ATIVADO por 1 segundo");
+                        console.log("Ativado por 1 segundo para recalcular altura");
                         sistemaStatus.textContent = "Ativado";
                         sistemaStatus.className = "badge bg-success";
 
@@ -253,7 +253,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             firebase.database().ref("sensor/novaLixeira").set(false);
                             firebase.database().ref("sensor/ativacaoManual").set(false)
                                 .then(() => {
-                                    console.log("Ativação manual para recalcular altura: DESATIVADO após 1 segundo");
+                                    console.log("Desativado após 1 segundo");
                                     sistemaStatus.textContent = "Desativado";
                                     sistemaStatus.className = "badge bg-danger";
                                 })
@@ -303,7 +303,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     .then(([volumeSnapshot, , esvaziamentosSnapshot]) => {
                         // Inicializar volume
                         ultimoVolume = volumeSnapshot.val() || 0;
-                        volumeValue.textContent = `${ultimoVolume.toFixed(1)}%`;
+                        volumeValue.textContent = `${Math.round(ultimoVolume)}%`; // Alterado para número inteiro
                         if (ultimoVolume >= 80) {
                             volumeValue.className = "badge bg-danger";
                         } else if (ultimoVolume >= 70) {
@@ -342,8 +342,20 @@ document.addEventListener("DOMContentLoaded", function () {
                             const currentTimestamp = Date.now();
                             console.log("Volume recebido:", volume, "Timestamp:", new Date(currentTimestamp).toLocaleString("pt-BR"));
 
+                            // Indicar que uma leitura está acontecendo
+                            console.log("Ativado por 1 segundo (leitura automática de volume)");
+                            sistemaStatus.textContent = "Ativado";
+                            sistemaStatus.className = "badge bg-success";
+
+                            // Voltar para "Desativado" após 1 segundo
+                            setTimeout(() => {
+                                console.log("Desativado após 1 segundo (leitura automática de volume)");
+                                sistemaStatus.textContent = "Desativado";
+                                sistemaStatus.className = "badge bg-danger";
+                            }, 1000);
+
                             // Atualizar interface imediatamente
-                            volumeValue.textContent = `${volume.toFixed(1)}%`;
+                            volumeValue.textContent = `${Math.round(volume)}%`; // Alterado para número inteiro
                             if (volume >= 80) {
                                 volumeValue.className = "badge bg-danger";
                                 console.log("Condição de 80% atingida. alerta80Exibido:", alerta80Exibido);
@@ -353,7 +365,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                     console.log("Alerta exibido na página.");
                                 }
                                 if (!mensagemWhatsAppEnviada) {
-                                    const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira atingiu ${volume.toFixed(1)}% de ocupação. Por favor, esvazie a lixeira o quanto antes!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
+                                    const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira atingiu ${Math.round(volume)}% de ocupação. Por favor, esvazie a lixeira o quanto antes!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`; // Alterado para número inteiro
                                     enviarMensagemWhatsApp(mensagem);
                                     mensagemWhatsAppEnviada = true;
                                     console.log("Mensagem WhatsApp enviada.");
