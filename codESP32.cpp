@@ -1,7 +1,7 @@
 #define USER_EMAIL "lixeira1@gmail.com"
 #define USER_PASSWORD "lixeira123"
 
-#define WIFI_SSID "R&J VEICULOS"
+#define WIFI_SSID "ESP 32"
 #define WIFI_PASSWORD "81367566"
 
 #define API_KEY "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0"
