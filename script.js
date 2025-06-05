@@ -471,7 +471,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         database.ref("sensor/ativacaoManual").on("value", (snapshot) => {
                             const estado = snapshot.val();
                             console.log("Estado atual da ativação manual:", estado);
-                            sistemaStatus.textContent = estado ? "Ativado" : "Desativada";
+                            sistemaStatus.textContent = estado ? "Ativada" : "Desativada";
                             sistemaStatus.className = `badge bg-${estado ? "success" : "danger"}`;
                             console.log("Interface atualizada - Status:", estado ? "Ativado" : "Desativada");
                         });
