@@ -25,6 +25,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const volumeMedioText = document.getElementById("volumeMedioText");
     const tempoMedioProgress = document.getElementById("tempoMedioProgress");
     const tempoMedioValue = document.getElementById("tempoMedioValue");
+    const cpuUsage = document.getElementById("cpuUsage"); // Novo
+    const latency = document.getElementById("latency"); // Novo
+    const ramUsage = document.getElementById("ramUsage"); // Novo
+    const temperature = document.getElementById("temperature"); // Novo
 
     // Variáveis para cálculos e controle
     let esvaziamentoTempos = []; // Para calcular tempo até esvaziamento (máximo 5 tempos)
@@ -298,9 +302,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 const volumePromise = database.ref("sensor/volume").once("value");
                 const historicoPromise = carregarHistoricoInicial(database);
                 const esvaziamentosPromise = database.ref("esvaziamentos").once("value");
+                const systemInfoPromise = database.ref("system_info").once("value"); // Novo
 
-                return Promise.all([volumePromise, historicoPromise, esvaziamentosPromise])
-                    .then(([volumeSnapshot, , esvaziamentosSnapshot]) => {
+                return Promise.all([volumePromise, historicoPromise, esvaziamentosPromise, systemInfoPromise])
+                    .then(([volumeSnapshot, , esvaziamentosSnapshot, systemInfoSnapshot]) => {
                         // Inicializar volume
                         ultimoVolume = volumeSnapshot.val() || 0;
                         volumeValue.textContent = `${Math.round(ultimoVolume)}%`; // Alterado para número inteiro
@@ -321,6 +326,13 @@ document.addEventListener("DOMContentLoaded", function () {
                             ? Math.round(esvaziamentoTempos.reduce((a, b) => a + b, 0) / esvaziamentoTempos.length)
                             : 0;
                         updateTempoMedioDisplay(tempoMedio);
+
+                        // Inicializar system_info
+                        const systemInfo = systemInfoSnapshot.val() || {};
+                        cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
+                        latency.textContent = `${systemInfo.latency || 0} ms`;
+                        ramUsage.textContent = `${systemInfo.ramUsage || 0}%`;
+                        temperature.textContent = `${systemInfo.temperature || 0}°C`;
 
                         // Inicializar inicioEsvaziamentoTimestamp com base no volume inicial
                         if (ultimoVolume > 1) {
@@ -466,6 +478,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
                             // Atualizar ultimoVolume APÓS todas as verificações
                             ultimoVolume = volume;
+                        });
+
+                        // Listener para system_info
+                        database.ref("system_info").on("value", (snapshot) => {
+                            const systemInfo = snapshot.val() || {};
+                            cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
+                            latency.textContent = `${systemInfo.latency || 0} ms`;
+                            ramUsage.textContent = `${systemInfo.ramUsage || 0}%`;
+                            temperature.textContent = `${systemInfo.temperature || 0}°C`;
+                            console.log("System info atualizado:", systemInfo);
                         });
 
                         database.ref("sensor/ativacaoManual").on("value", (snapshot) => {
