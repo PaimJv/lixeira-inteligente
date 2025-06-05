@@ -133,7 +133,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     badgeClass = "bg-warning";
                     badgeText = "Medição";
                 } else if (entry.type === "ativação") {
-                    
+                    li.innerHTML = `
+                        <div>
+                            <strong>Leitura Ativada</strong>
+                            <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
+                        </div>`;
                     badgeClass = "bg-success";
                     badgeText = "Ativo";
                 } else if (entry.type === "esvaziamento") {
