@@ -288,7 +288,7 @@ h1 {
     font-size: clamp(12px, 2.5vw, 14px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     max-width: clamp(200px, 50vw, 300px);
-    text-align: center;
+    text-align: justify;
 }
 
 .tooltip.bs-tooltip-top .tooltip-arrow::before {

@@ -469,9 +469,6 @@ document.addEventListener("DOMContentLoaded", function () {
                             console.log("Altura recebida:", altura);
                             alturaValue.textContent = altura !== "N/D" ? `${Math.round(altura)} cm` : "N/D";
                         });
-
-                        // REMOVIDO: listener child_added que causava duplicação
-                        // Agora usamos apenas o histórico local e atualizações diretas
                     });
             });
     }
