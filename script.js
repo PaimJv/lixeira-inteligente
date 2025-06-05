@@ -196,14 +196,14 @@ document.addEventListener("DOMContentLoaded", function () {
         firebase.database().ref("sensor/ativacaoManual").set(true)
             .then(() => {
                 console.log("Ativado por 1 segundo");
-                sistemaStatus.textContent = "Ativado";
+                sistemaStatus.textContent = "Ativada";
                 sistemaStatus.className = "badge bg-success";
 
                 setTimeout(() => {
                     firebase.database().ref("sensor/ativacaoManual").set(false)
                         .then(() => {
                             console.log("Desativado após 1 segundo");
-                            sistemaStatus.textContent = "Desativado";
+                            sistemaStatus.textContent = "Desativada";
                             sistemaStatus.className = "badge bg-danger";
                         })
                         .catch((error) => {
