@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", function () {
         firebase.database().ref("sensor/ativacaoManual").set(true)
             .then(() => {
                 console.log("Ativado por 1 segundo");
-                sistemaStatus.textContent = "Ativada";
+                sistemaStatus.textContent = "Ativado";
                 sistemaStatus.className = "badge bg-success";
 
                 setTimeout(() => {
@@ -254,7 +254,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             firebase.database().ref("sensor/ativacaoManual").set(false)
                                 .then(() => {
                                     console.log("Desativado após 1 segundo");
-                                    sistemaStatus.textContent = "Desativado";
+                                    sistemaStatus.textContent = "Desativada";
                                     sistemaStatus.className = "badge bg-danger";
                                 })
                                 .catch((error) => {
@@ -347,10 +347,10 @@ document.addEventListener("DOMContentLoaded", function () {
                             sistemaStatus.textContent = "Ativado";
                             sistemaStatus.className = "badge bg-success";
 
-                            // Voltar para "Desativado" após 1 segundo
+                            // Voltar para "Desativada" após 1 segundo
                             setTimeout(() => {
                                 console.log("Desativado após 1 segundo (leitura automática de volume)");
-                                sistemaStatus.textContent = "Desativado";
+                                sistemaStatus.textContent = "Desativada";
                                 sistemaStatus.className = "badge bg-danger";
                             }, 1000);
 
@@ -471,9 +471,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         database.ref("sensor/ativacaoManual").on("value", (snapshot) => {
                             const estado = snapshot.val();
                             console.log("Estado atual da ativação manual:", estado);
-                            sistemaStatus.textContent = estado ? "Ativado" : "Desativado";
+                            sistemaStatus.textContent = estado ? "Ativado" : "Desativada";
                             sistemaStatus.className = `badge bg-${estado ? "success" : "danger"}`;
-                            console.log("Interface atualizada - Status:", estado ? "Ativado" : "Desativado");
+                            console.log("Interface atualizada - Status:", estado ? "Ativado" : "Desativada");
                         });
 
                         database.ref("sensor/altura").on("value", (snapshot) => {
