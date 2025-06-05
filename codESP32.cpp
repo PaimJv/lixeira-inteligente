@@ -22,7 +22,7 @@ FirebaseConfig config;
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
 // Acelerômetro
-const float MOVEMENT_THRESHOLD = 0.4;
+const float MOVEMENT_THRESHOLD = 0.4; // Limiar ajustado para 0.4
 float lastAcceleration[3] = {0.0, 0.0, 0.0};
 
 // Controle de tempo para interrupções
@@ -34,12 +34,13 @@ const unsigned long alturaCheckInterval = 2000;
 
 // Controle de tempo para benchmark
 unsigned long benchmarkPrevMillis = 0;
-const unsigned long benchmarkInterval = 10000; // 10 segundos
+const unsigned long benchmarkInterval = 10000;
 
-// Controle de tempo parado
+// Controle de tempo parado e ativação
 unsigned long stillStartTime = 0;
+unsigned long activationStartTime = 0; // Nova variável para rastrear início da ativação
 const unsigned long stillDurationRequired = 5000;
-const unsigned long stillDurationTolerance = 100;
+const unsigned long activationDuration = 1000; // 1 segundo de ativação
 bool comandoEnviado = false;
 
 // Variáveis para interrupção de software
@@ -55,7 +56,7 @@ const int ledPlaca = 2;
 
 // Variáveis globais
 float distancia = -1;
-float altura = 50; // Valor inicial padrão
+float altura = 50;
 int volume;
 bool ativacao = false;
 
@@ -162,7 +163,6 @@ void loop() {
     }
   }
 
-  // Executa benchmark a cada 10 segundos
   if (Firebase.ready() && (millis() - benchmarkPrevMillis >= benchmarkInterval)) {
     benchmarkPrevMillis = millis();
     benchmark();
@@ -185,16 +185,34 @@ void checkMovement() {
     Serial.println("Movimento detectado!");
     stillStartTime = 0;
     comandoEnviado = false;
+    if (ativacao && activationStartTime > 0) {
+      Serial.println("Movimento interrompeu ativação");
+      ativacao = false;
+      activationStartTime = 0;
+    }
   } else {
     if (stillStartTime == 0) {
       stillStartTime = millis();
     }
 
     unsigned long stillDuration = millis() - stillStartTime;
-    if (!comandoEnviado && stillDuration >= (stillDurationRequired - stillDurationTolerance) && 
-        stillDuration <= (stillDurationRequired + stillDurationTolerance)) {
+    Serial.print("Tempo parado: ");
+    Serial.print(stillDuration);
+    Serial.println(" ms");
+
+    if (!comandoEnviado && stillDuration >= stillDurationRequired && !ativacao) {
       ativacao = true;
-      Serial.println("Sistema ativado");
+      comandoEnviado = true;
+      activationStartTime = millis(); // Marca o início da ativação
+      Serial.println("Sistema ativado por movimento");
+    }
+
+    // Verifica desativação após 1 segundo
+    if (ativacao && activationStartTime > 0 && (millis() - activationStartTime >= activationDuration)) {
+      ativacao = false;
+      comandoEnviado = false; // Permite nova ativação
+      activationStartTime = 0;
+      Serial.println("Sistema desativado após 1 segundo");
     }
   }
 
@@ -220,21 +238,41 @@ void medicao() {
 }
 
 void ativarSistema() {
+  bool ativacaoPorMovimento = ativacao;
+
+  // Verifica movimento a cada 100 ms
+  if (millis() - lastCheckMillis >= checkInterval) {
+    lastCheckMillis = millis();
+    checkMovement();
+    ativacaoPorMovimento = ativacao;
+  }
+
+  // Verifica ativacaoManual a cada 500 ms
   if (millis() - ativacaoManualCheckPrevMillis >= ativacaoManualCheckInterval) {
     ativacaoManualCheckPrevMillis = millis();
-
     if (Firebase.RTDB.getBool(&fbdo, "/sensor/ativacaoManual")) {
       bool ativacaoManual = fbdo.boolData();
-      ativacao = ativacaoManual;
+      if (ativacaoManual) {
+        ativacao = true;
+        activationStartTime = 0; // Evita desativação automática se ativado manualmente
+        Serial.println("Sistema ativado por ativacaoManual");
+      } else if (!ativacaoPorMovimento) {
+        ativacao = false;
+        comandoEnviado = false;
+        activationStartTime = 0;
+        Serial.println("Sistema desativado por ativacaoManual");
+      }
     } else {
       Serial.println("Erro ao ler ativacaoManual: " + fbdo.errorReason());
     }
   }
 
+  // Verifica novaLixeira a cada 2000 ms
   if (millis() - alturaCheckPrevMillis >= alturaCheckInterval) {
     alturaCheckPrevMillis = millis();
     if (Firebase.RTDB.getBool(&fbdo, "/sensor/novaLixeira")) {
       bool restaurarLixeira = fbdo.boolData();
+      Serial.print("novaLixeira lida do Firebase: ");
       Serial.println(restaurarLixeira);
       if (restaurarLixeira) {
         medicao();
@@ -262,25 +300,18 @@ void ativarSistema() {
       Serial.println("Erro ao ler novaLixeira: " + fbdo.errorReason());
     }
   }
-
-  if (millis() - lastCheckMillis >= checkInterval) {
-    lastCheckMillis = millis();
-    checkMovement();
-  }
 }
 
-// Função para medir a latência do Firebase
 int testFirebaseLatency() {
   unsigned long start = millis();
   if (Firebase.RTDB.getInt(&fbdo, "/system_info/cpuUsage")) {
-    return millis() - start; // Tempo em ms
+    return millis() - start;
   } else {
     Serial.println("Erro ao testar latência: " + fbdo.errorReason());
-    return 0; // Falha
+    return 0;
   }
 }
 
-// Função para calcular o uso de RAM
 int GetRamUsage() {
   size_t freeHeap = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
   size_t totalHeap = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
@@ -288,22 +319,18 @@ int GetRamUsage() {
   return (int)usedPercent;
 }
 
-// Função de benchmark
 void benchmark() {
-  // Gerar valores
   int cpuUsage = random(50, 57);
   int latency = testFirebaseLatency();
   int ramUsage = GetRamUsage();
   int temperature = (int)temperatureRead();
 
-  // Exibir valores no Serial
   Serial.println("--- Benchmark ---");
   Serial.print("Uso de CPU: "); Serial.print(cpuUsage); Serial.println("%");
   Serial.print("Latência: "); Serial.print(latency); Serial.println(" ms");
   Serial.print("Uso de RAM: "); Serial.print(ramUsage); Serial.println("%");
   Serial.print("Temperatura: "); Serial.print(temperature); Serial.println(" C");
 
-  // Enviar dados para o Firebase
   if (Firebase.RTDB.setInt(&fbdo, "/system_info/cpuUsage", cpuUsage)) {
     Serial.println("cpuUsage enviado ao Firebase");
   } else {
