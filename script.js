@@ -31,8 +31,10 @@ document.addEventListener("DOMContentLoaded", function () {
     let ultimoVolume = 0; // Último volume registrado
     let inicioEsvaziamentoTimestamp = null; // Timestamp quando o volume sai de 0%
     let isFirstLoad = true; // Flag para identificar a primeira leitura após o carregamento
-    let alerta90Exibido = false; // Flag para controlar a exibição única do alerta de 90%
+    let alerta80Exibido = false; // Flag para controlar a exibição única do alerta de 80%
     let mensagemWhatsAppEnviada = false; // Flag para controlar o envio único da mensagem WhatsApp
+    let ultimoRegistroTimestamp = 0; // Timestamp do último registro para evitar duplicatas
+    let historicoLocal = []; // Histórico local para evitar recarregamentos desnecessários
 
     // Configurações para o CallMeBot
     const callMeBotApiKey = "3113566"; // Sua API Key do CallMeBot
@@ -72,6 +74,32 @@ document.addEventListener("DOMContentLoaded", function () {
             preenchimento.style.background = "linear-gradient(0deg, #28a745 0%, #218838 100%)";
             preenchimento.style.setProperty('--before-gradient', 'linear-gradient(0deg, #218838 0%, #1e7e34 100%)');
             console.log("Volume < 70%, Cor: Verde");
+        }
+    }
+
+    // Função para atualizar o histórico localmente
+    function atualizarHistoricoLocal(novoEntry) {
+        // Verificar se já existe uma entrada similar recente (evitar duplicatas)
+        const entradaExistente = historicoLocal.find(entry => 
+            entry.type === novoEntry.type && 
+            Math.abs(entry.timestamp - novoEntry.timestamp) < 3000 && // 3 segundos de diferença
+            (entry.type !== "volume" || Math.abs(entry.volume - novoEntry.volume) < 0.1)
+        );
+
+        if (!entradaExistente) {
+            // Adicionar novo entry ao histórico local
+            historicoLocal.unshift(novoEntry);
+            
+            // Manter apenas os 50 mais recentes na memória
+            if (historicoLocal.length > 50) {
+                historicoLocal = historicoLocal.slice(0, 50);
+            }
+            
+            // Atualizar interface
+            atualizarHistoricoEVolumeMedio(historicoLocal);
+            console.log("Histórico local atualizado:", novoEntry);
+        } else {
+            console.log("Entrada duplicada ignorada:", novoEntry);
         }
     }
 
@@ -138,8 +166,7 @@ document.addEventListener("DOMContentLoaded", function () {
         volumeMedioDisplay.setAttribute("aria-valuenow", volumeMedio);
         volumeMedioDisplay.textContent = `${volumeMedio}%`;
         volumeMedioText.textContent = `${volumeMedio}%`;
-        console.log("Volume médio calculado a partir do histórico:", volumeMedio, "Medições:", volumeMedicoes);
-        console.log("Histórico exibido na interface:", historico.slice(0, 10));
+        console.log("Volume médio calculado:", volumeMedio, "Medições:", volumeMedicoes.length);
     }
 
     // Função para atualizar a exibição do tempo médio
@@ -160,7 +187,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const historicoEntry = { type: "ativação", timestamp };
 
         firebase.database().ref("historico").push(historicoEntry)
-            .then(() => console.log("Ativação manual salva no histórico"))
+            .then(() => {
+                console.log("Ativação manual salva no histórico");
+                atualizarHistoricoLocal(historicoEntry);
+            })
             .catch((error) => console.error("Erro ao salvar ativação no histórico:", error));
 
         firebase.database().ref("sensor/ativacaoManual").set(true)
@@ -195,7 +225,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const historicoEntry = { type: "restaurar", timestamp };
 
         firebase.database().ref("historico").push(historicoEntry)
-            .then(() => console.log("Restauração salva no histórico"))
+            .then(() => {
+                console.log("Restauração salva no histórico");
+                atualizarHistoricoLocal(historicoEntry);
+            })
             .catch((error) => console.error("Erro ao salvar restauração no histórico:", error));
 
         // Redefinir altura usando novaLixeira e forçar volume para 0
@@ -241,6 +274,16 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
+    // Função para carregar histórico inicial
+    function carregarHistoricoInicial(database) {
+        return database.ref("historico").once("value").then((snapshot) => {
+            const historicoData = snapshot.val() || {};
+            historicoLocal = Object.values(historicoData).sort((a, b) => b.timestamp - a.timestamp);
+            atualizarHistoricoEVolumeMedio(historicoLocal);
+            console.log("Histórico inicial carregado:", historicoLocal.length, "entradas");
+        });
+    }
+
     // Função para inicializar a interface após carregar os dados
     function inicializarInterface() {
         firebase.initializeApp(firebaseConfig);
@@ -253,15 +296,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 // Carregar dados iniciais em paralelo
                 const volumePromise = database.ref("sensor/volume").once("value");
-                const historicoPromise = database.ref("historico").once("value");
+                const historicoPromise = carregarHistoricoInicial(database);
                 const esvaziamentosPromise = database.ref("esvaziamentos").once("value");
 
                 return Promise.all([volumePromise, historicoPromise, esvaziamentosPromise])
-                    .then(([volumeSnapshot, historicoSnapshot, esvaziamentosSnapshot]) => {
+                    .then(([volumeSnapshot, , esvaziamentosSnapshot]) => {
                         // Inicializar volume
                         ultimoVolume = volumeSnapshot.val() || 0;
                         volumeValue.textContent = `${ultimoVolume.toFixed(1)}%`;
-                        if (ultimoVolume >= 90) {
+                        if (ultimoVolume >= 80) {
                             volumeValue.className = "badge bg-danger";
                         } else if (ultimoVolume >= 70) {
                             volumeValue.className = "badge bg-warning";
@@ -270,11 +313,6 @@ document.addEventListener("DOMContentLoaded", function () {
                         }
                         atualizarCorPreenchimento(ultimoVolume);
                         preenchimento.style.height = `${ultimoVolume}%`;
-
-                        // Inicializar histórico
-                        const historicoData = historicoSnapshot.val() || {};
-                        const historico = Object.values(historicoData).sort((a, b) => b.timestamp - a.timestamp);
-                        atualizarHistoricoEVolumeMedio(historico);
 
                         // Inicializar tempos de esvaziamento
                         const esvaziamentoData = esvaziamentosSnapshot.val() || {};
@@ -286,7 +324,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                         // Inicializar inicioEsvaziamentoTimestamp com base no volume inicial
                         if (ultimoVolume > 1) {
-                            const ultimaMedicao = historico.filter(entry => entry.type === "volume").slice(0, 1)[0];
+                            const ultimaMedicao = historicoLocal.filter(entry => entry.type === "volume").slice(0, 1)[0];
                             if (ultimaMedicao) {
                                 inicioEsvaziamentoTimestamp = ultimaMedicao.timestamp;
                                 console.log("Ciclo de esvaziamento iniciado com base no volume inicial. Timestamp:", new Date(inicioEsvaziamentoTimestamp).toLocaleString("pt-BR"));
@@ -304,26 +342,32 @@ document.addEventListener("DOMContentLoaded", function () {
                             const currentTimestamp = Date.now();
                             console.log("Volume recebido:", volume, "Timestamp:", new Date(currentTimestamp).toLocaleString("pt-BR"));
 
+                            // Atualizar interface imediatamente
                             volumeValue.textContent = `${volume.toFixed(1)}%`;
-                            if (volume >= 90) {
+                            if (volume >= 80) {
                                 volumeValue.className = "badge bg-danger";
-                                if (!alerta90Exibido) {
-                                    alert("Atenção! O volume da lixeira atingiu ou ultrapassou 90%. Por favor, esvazie a lixeira.");
-                                    alerta90Exibido = true; // Marca o alerta como exibido
+                                console.log("Condição de 80% atingida. alerta80Exibido:", alerta80Exibido);
+                                if (!alerta80Exibido) {
+                                    alert("Atenção! O volume da lixeira atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.");
+                                    alerta80Exibido = true;
+                                    console.log("Alerta exibido na página.");
                                 }
                                 if (!mensagemWhatsAppEnviada) {
                                     const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira atingiu ${volume.toFixed(1)}% de ocupação. Por favor, esvazie a lixeira o quanto antes!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
                                     enviarMensagemWhatsApp(mensagem);
-                                    mensagemWhatsAppEnviada = true; // Marca a mensagem como enviada
+                                    mensagemWhatsAppEnviada = true;
+                                    console.log("Mensagem WhatsApp enviada.");
                                 }
                             } else if (volume >= 70) {
                                 volumeValue.className = "badge bg-warning";
-                                alerta90Exibido = false; // Reseta o flag se o volume voltar abaixo de 90%
-                                mensagemWhatsAppEnviada = false; // Reseta o flag para permitir novo envio
+                                alerta80Exibido = false;
+                                mensagemWhatsAppEnviada = false;
+                                console.log("Volume entre 70% e 79.9%. Flags resetadas.");
                             } else {
                                 volumeValue.className = "badge bg-success";
-                                alerta90Exibido = false; // Reseta o flag se o volume voltar abaixo de 70%
-                                mensagemWhatsAppEnviada = false; // Reseta o flag para permitir novo envio
+                                alerta80Exibido = false;
+                                mensagemWhatsAppEnviada = false;
+                                console.log("Volume abaixo de 70%. Flags resetadas.");
                             }
 
                             atualizarCorPreenchimento(volume);
@@ -332,9 +376,15 @@ document.addEventListener("DOMContentLoaded", function () {
                             if (isFirstLoad) {
                                 console.log("Primeira leitura após carregamento, apenas atualizando interface.");
                                 isFirstLoad = false;
+                                ultimoVolume = volume; // Atualizar ultimoVolume na primeira carga
                                 return;
                             }
 
+                            // Verificar se houve mudança significativa no volume
+                            const diferencaVolume = Math.abs(volume - ultimoVolume);
+                            const tempoSuficiente = currentTimestamp - ultimoRegistroTimestamp > 5000; // 5 segundos
+
+                            // Lógica de esvaziamento
                             if (volume > 1 && ultimoVolume <= 1 && inicioEsvaziamentoTimestamp === null) {
                                 inicioEsvaziamentoTimestamp = currentTimestamp;
                                 console.log("Início do ciclo de esvaziamento detectado. Timestamp:", new Date(inicioEsvaziamentoTimestamp).toLocaleString("pt-BR"));
@@ -355,15 +405,16 @@ document.addEventListener("DOMContentLoaded", function () {
                                         .then(() => console.log("Esvaziamento salvo no Firebase:", esvaziamentoEntry))
                                         .catch((error) => {
                                             console.error("Erro ao salvar esvaziamento no Firebase:", error);
-                                            alert("Erro ao salvar esvaziamento: Verifique as permissões do Firebase.");
                                         });
 
                                     const historicoEntry = { type: "esvaziamento", timestamp: currentTimestamp, tempo: tempoDecorrido };
                                     database.ref("historico").push(historicoEntry)
-                                        .then(() => console.log("Esvaziamento salvo no histórico"))
+                                        .then(() => {
+                                            console.log("Esvaziamento salvo no histórico");
+                                            atualizarHistoricoLocal(historicoEntry);
+                                        })
                                         .catch((error) => {
                                             console.error("Erro ao salvar esvaziamento no histórico:", error);
-                                            alert("Erro ao salvar esvaziamento no histórico: Verifique as permissões do Firebase.");
                                         });
 
                                     const tempoMedio = esvaziamentoTempos.length > 0
@@ -380,16 +431,28 @@ document.addEventListener("DOMContentLoaded", function () {
                                 console.log("Esvaziamento não detectado: volume =", volume, "inicioEsvaziamentoTimestamp =", inicioEsvaziamentoTimestamp);
                             }
 
-                            if (volume !== ultimoVolume) {
-                                const historicoEntry = { type: "volume", volume: volume.toFixed(1), timestamp: currentTimestamp };
+                            // Salvar no histórico apenas se houver mudança significativa OU tempo suficiente
+                            if ((diferencaVolume >= 0.5 || tempoSuficiente) && (diferencaVolume > 0 || tempoSuficiente)) {
+                                const historicoEntry = { 
+                                    type: "volume", 
+                                    volume: parseFloat(volume.toFixed(1)), // Garantir que seja número
+                                    timestamp: currentTimestamp 
+                                };
+                                
                                 database.ref("historico").push(historicoEntry)
-                                    .then(() => console.log("Volume salvo no histórico"))
+                                    .then(() => {
+                                        console.log("Volume salvo no histórico:", historicoEntry);
+                                        ultimoRegistroTimestamp = currentTimestamp;
+                                        atualizarHistoricoLocal(historicoEntry);
+                                    })
                                     .catch((error) => {
                                         console.error("Erro ao salvar volume no histórico:", error);
-                                        alert("Erro ao salvar volume no histórico: Verifique as permissões do Firebase.");
                                     });
+                            } else {
+                                console.log("Volume não salvo - diferença insuficiente:", diferencaVolume, "ou tempo insuficiente:", !tempoSuficiente);
                             }
 
+                            // Atualizar ultimoVolume APÓS todas as verificações
                             ultimoVolume = volume;
                         });
 
@@ -407,15 +470,8 @@ document.addEventListener("DOMContentLoaded", function () {
                             alturaValue.textContent = altura !== "N/D" ? `${Math.round(altura)} cm` : "N/D";
                         });
 
-                        database.ref("historico").on("child_added", () => {
-                            database.ref("historico").once("value").then((snap) => {
-                                const historico = Object.values(snap.val() || {}).sort((a, b) => b.timestamp - a.timestamp);
-                                atualizarHistoricoEVolumeMedio(historico);
-                            }).catch((error) => {
-                                console.error("Erro ao atualizar histórico:", error);
-                                alert("Erro ao atualizar histórico: Verifique as permissões do Firebase.");
-                            });
-                        });
+                        // REMOVIDO: listener child_added que causava duplicação
+                        // Agora usamos apenas o histórico local e atualizações diretas
                     });
             });
     }
