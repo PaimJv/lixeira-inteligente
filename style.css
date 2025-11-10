@@ -454,3 +454,128 @@ h1 {
         height: 300px;
     }
 }
+
+/* ======== NOVOS ESTILOS PARA O LAYOUT DE 5 LIXEIRAS ======== */
+
+/* Define a largura do menu lateral */
+:root {
+    --sidebar-width: 260px;
+}
+
+body {
+    /* Adiciona um padding à esquerda do body igual à largura do menu */
+    padding-left: var(--sidebar-width);
+    /* Garante que seu gradiente original continue funcionando */
+    background-attachment: fixed;
+}
+
+#sidebar {
+    position: fixed; /* Fixo na tela */
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100vh; /* Altura total da tela */
+    background: linear-gradient(160deg, #2c3e50 0%, #3a506b 100%);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    padding: 20px 15px;
+    z-index: 1000;
+    color: white;
+}
+
+#sidebar h4 {
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 10px;
+}
+
+#sidebar .nav-link {
+    color: #f1f1f1;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+#sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    transform: translateX(5px);
+}
+
+#sidebar .nav-link.active {
+    /* Usa a cor do seu design original */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+#main-content {
+    /* O conteúdo principal agora flui normalmente */
+    width: 100%;
+}
+
+/* ======== AJUSTES DE RESPONSIVIDADE ======== */
+
+@media (max-width: 992px) {
+    /* Em telas menores, o menu vira uma barra no topo */
+    body {
+        padding-left: 0;
+        /* Adiciona espaço no topo para a barra */
+        padding-top: 80px; 
+    }
+
+    #sidebar {
+        width: 100%;
+        height: auto; /* Altura automática */
+        flex-direction: row;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+    }
+
+    #sidebar h4 {
+        /* Esconde o título no mobile para mais espaço */
+        display: none; 
+    }
+
+    #sidebar .nav {
+        /* Faz os links ficarem na horizontal */
+        flex-direction: row !important; 
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    #sidebar .nav-item {
+        margin: 2px;
+    }
+
+    #sidebar .nav-link {
+        padding: 8px 12px;
+        margin-bottom: 0;
+    }
+    
+    #sidebar .nav-link:hover {
+        transform: none; /* Remove a animação de hover */
+    }
+
+    /* Ajusta o seu container para o novo layout */
+    .container {
+        margin: 0.5rem auto;
+        width: calc(100% - 1rem);
+    }
+}
+
+@media (max-width: 576px) {
+    body {
+        /* Aumenta o espaço no topo se os botões quebrarem em 2 linhas */
+        padding-top: 120px; 
+    }
+    
+    #sidebar .nav-link {
+        font-size: 0.85rem;
+    }
+}
