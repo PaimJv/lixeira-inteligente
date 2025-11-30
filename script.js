@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
+    // ========== 1. CONFIGURAÇÃO FIREBASE E AUTENTICAÇÃO ==========
     const firebaseConfig = {
         apiKey: "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0",
         authDomain: "lixeira-inteligente-esp32.firebaseapp.com",
@@ -13,6 +14,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const email = "lixeira1@gmail.com";
     const password = "lixeira123";
 
+    // Configurações para o CallMeBot
+    const callMeBotApiKey = "3113566"; // Sua API Key do CallMeBot
+    const numeroWhatsApp = "+557592230180"; // Seu número de destino
+
+    // ========== 2. ELEMENTOS DA INTERFACE ==========
+    // Título dinâmico
+    const lixeiraTitle = document.getElementById('lixeiraTitle');
+
     // Elementos da tela do sistema
     const sistemaStatus = document.getElementById("ledStatus");
     const volumeValue = document.getElementById("volumeValue");
@@ -25,29 +34,36 @@ document.addEventListener("DOMContentLoaded", function () {
     const volumeMedioText = document.getElementById("volumeMedioText");
     const tempoMedioProgress = document.getElementById("tempoMedioProgress");
     const tempoMedioValue = document.getElementById("tempoMedioValue");
-    const cpuUsage = document.getElementById("cpuUsage"); // Novo
-    const latency = document.getElementById("latency"); // Novo
-    const ramUsage = document.getElementById("ramUsage"); // Novo
-    const temperature = document.getElementById("temperature"); // Novo
+    const cpuUsage = document.getElementById("cpuUsage");
+    const latency = document.getElementById("latency");
+    const ramUsage = document.getElementById("ramUsage");
+    const temperature = document.getElementById("temperature");
+    const alertaCritico = document.getElementById("alertaCritico"); // Faltava no seu JS original, mas estava no meu
 
-    // Variáveis para cálculos e controle
-    let esvaziamentoTempos = []; // Para calcular tempo até esvaziamento (máximo 5 tempos)
-    let ultimoVolume = 0; // Último volume registrado
-    let inicioEsvaziamentoTimestamp = null; // Timestamp quando o volume sai de 0%
-    let isFirstLoad = true; // Flag para identificar a primeira leitura após o carregamento
-    let alerta80Exibido = false; // Flag para controlar a exibição única do alerta de 80%
-    let mensagemWhatsAppEnviada = false; // Flag para controlar o envio único da mensagem WhatsApp
-    let ultimoRegistroTimestamp = 0; // Timestamp do último registro para evitar duplicatas
-    let historicoLocal = []; // Histórico local para evitar recarregamentos desnecessários
+    // ========== 3. VARIÁVEIS GLOBAIS DE ESTADO E CONTROLE ==========
 
-    // Configurações para o CallMeBot
-    const callMeBotApiKey = "3113566"; // Sua API Key do CallMeBot
-    const numeroWhatsApp = "+557592230180"; // Seu número de destino no formato internacional
+    // ID da lixeira sendo exibida no momento
+    let currentLixeiraId = 'lixeira1';
+    let database; // Referência global para o DB do Firebase
 
-    // Função para enviar mensagem via WhatsApp usando CallMeBot
+    // Referências aos 'listeners' do Firebase
+    let refVolume, refAltura, refAtivacao, refSystemInfo;
+
+    // Variáveis de estado (serão resetadas a cada troca de lixeira)
+    let esvaziamentoTempos = [];
+    let ultimoVolume = 0;
+    let inicioEsvaziamentoTimestamp = null;
+    let isFirstLoad = true;
+    let alerta80Exibido = false;
+    let mensagemWhatsAppEnviada = false;
+    let ultimoRegistroTimestamp = 0;
+    let historicoLocal = [];
+
+    // ========== 4. FUNÇÕES AUXILIARES (CallMeBot, UI) ==========
+
+    // Função para enviar mensagem via WhatsApp (Sua função original)
     function enviarMensagemWhatsApp(mensagem) {
         const url = `https://api.callmebot.com/whatsapp.php?phone=${numeroWhatsApp}&text=${encodeURIComponent(mensagem)}&apikey=${callMeBotApiKey}`;
-        
         fetch(url)
             .then(response => {
                 if (!response.ok) {
@@ -60,7 +76,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
-    // Função para atualizar as cores do preenchimento
+    // Função para atualizar as cores do preenchimento (Sua função original)
     function atualizarCorPreenchimento(volume) {
         preenchimento.style.background = "";
         preenchimento.style.backgroundColor = "";
@@ -69,37 +85,28 @@ document.addEventListener("DOMContentLoaded", function () {
         if (volume >= 90) {
             preenchimento.style.background = "linear-gradient(0deg, #dc3545 0%, #c82333 100%)";
             preenchimento.style.setProperty('--before-gradient', 'linear-gradient(0deg, #c82333 0%, #b02a30 100%)');
-            console.log("Volume >= 90%, Cor: Vermelho");
         } else if (volume >= 70) {
             preenchimento.style.background = "linear-gradient(0deg, #ffc107 0%, #e0a800 100%)";
             preenchimento.style.setProperty('--before-gradient', 'linear-gradient(0deg, #e0a800 0%, #cc9900 100%)');
-            console.log("Volume 70-89.9%, Cor: Amarelo");
         } else {
             preenchimento.style.background = "linear-gradient(0deg, #28a745 0%, #218838 100%)";
             preenchimento.style.setProperty('--before-gradient', 'linear-gradient(0deg, #218838 0%, #1e7e34 100%)');
-            console.log("Volume < 70%, Cor: Verde");
         }
     }
 
-    // Função para atualizar o histórico localmente
+    // Função para atualizar o histórico localmente (Sua função original)
     function atualizarHistoricoLocal(novoEntry) {
-        // Verificar se já existe uma entrada similar recente (evitar duplicatas)
-        const entradaExistente = historicoLocal.find(entry => 
-            entry.type === novoEntry.type && 
-            Math.abs(entry.timestamp - novoEntry.timestamp) < 3000 && // 3 segundos de diferença
+        const entradaExistente = historicoLocal.find(entry =>
+            entry.type === novoEntry.type &&
+            Math.abs(entry.timestamp - novoEntry.timestamp) < 3000 &&
             (entry.type !== "volume" || Math.abs(entry.volume - novoEntry.volume) < 0.1)
         );
 
         if (!entradaExistente) {
-            // Adicionar novo entry ao histórico local
             historicoLocal.unshift(novoEntry);
-            
-            // Manter apenas os 50 mais recentes na memória
             if (historicoLocal.length > 50) {
                 historicoLocal = historicoLocal.slice(0, 50);
             }
-            
-            // Atualizar interface
             atualizarHistoricoEVolumeMedio(historicoLocal);
             console.log("Histórico local atualizado:", novoEntry);
         } else {
@@ -107,7 +114,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // Função para atualizar o histórico na interface e calcular o Volume Médio
+    // Função para atualizar o histórico na interface e calcular o Volume Médio (Sua função original)
     function atualizarHistoricoEVolumeMedio(historico) {
         historicoList.innerHTML = "";
         const volumeMedicoes = historico.filter(entry => entry.type === "volume").slice(0, 10);
@@ -123,41 +130,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 li.className = "list-group-item d-flex justify-content-between align-items-center";
                 let badgeClass = "";
                 let badgeText = "";
+                let entryHtml = "";
 
                 if (entry.type === "volume") {
-                    li.innerHTML = `
-                        <div>
-                            <strong>Medição: ${entry.volume}% de ocupação</strong>
-                            <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
-                        </div>`;
+                    entryHtml = `<strong>Medição: ${entry.volume}% de ocupação</strong>`;
                     badgeClass = "bg-warning";
                     badgeText = "Medição";
                 } else if (entry.type === "ativação") {
-                    li.innerHTML = `
-                        <div>
-                            <strong>Leitura Ativada</strong>
-                            <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
-                        </div>`;
+                    entryHtml = `<strong>Leitura Ativada</strong>`;
                     badgeClass = "bg-success";
                     badgeText = "Ativo";
                 } else if (entry.type === "esvaziamento") {
-                    li.innerHTML = `
-                        <div>
-                            <strong>Esvaziamento (Tempo: ${entry.tempo} min)</strong>
-                            <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
-                        </div>`;
+                    entryHtml = `<strong>Esvaziamento (Tempo: ${entry.tempo} min)</strong>`;
                     badgeClass = "bg-info";
                     badgeText = "Esvaziamento";
                 } else if (entry.type === "restaurar") {
-                    li.innerHTML = `
-                        <div>
-                            <strong>Lixeira Restaurada</strong>
-                            <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
-                        </div>`;
+                    entryHtml = `<strong>Lixeira Restaurada</strong>`;
                     badgeClass = "bg-warning";
                     badgeText = "Restaurar";
                 }
 
+                li.innerHTML = `
+                    <div>
+                        ${entryHtml}
+                        <small class="text-muted d-block">${new Date(entry.timestamp).toLocaleString("pt-BR")}</small>
+                    </div>`;
+                
                 const badge = document.createElement("span");
                 badge.className = `badge ${badgeClass} rounded-pill`;
                 badge.textContent = badgeText;
@@ -170,10 +168,9 @@ document.addEventListener("DOMContentLoaded", function () {
         volumeMedioDisplay.setAttribute("aria-valuenow", volumeMedio);
         volumeMedioDisplay.textContent = `${volumeMedio}%`;
         volumeMedioText.textContent = `${volumeMedio}%`;
-        console.log("Volume médio calculado:", volumeMedio, "Medições:", volumeMedicoes.length);
     }
 
-    // Função para atualizar a exibição do tempo médio
+    // Função para atualizar a exibição do tempo médio (Sua função original)
     function updateTempoMedioDisplay(tempoMedio) {
         const normalizedTempo = isNaN(tempoMedio) || tempoMedio <= 0 ? 0 : Math.round(tempoMedio);
         const progressWidth = Math.min((normalizedTempo / 10) * 100, 100); // Escala de 0 a 10 minutos
@@ -181,96 +178,69 @@ document.addEventListener("DOMContentLoaded", function () {
         tempoMedioProgress.setAttribute("aria-valuenow", normalizedTempo);
         tempoMedioProgress.textContent = ""; // Remover o texto da barra
         tempoMedioValue.textContent = `${normalizedTempo} minutos`;
-        console.log("Tempo médio exibido:", normalizedTempo, "Progresso:", progressWidth);
     }
 
-    // Função para realizar nova leitura
+    // ========== 5. FUNÇÕES DE CONTROLE (Modificadas) ==========
+
+    // Função para realizar nova leitura (MODIFICADA para usar currentLixeiraId)
     function realizarNovaLeitura() {
-        console.log("Iniciando nova leitura...");
+        console.log(`Iniciando nova leitura para ${currentLixeiraId}...`);
         const timestamp = Date.now();
         const historicoEntry = { type: "ativação", timestamp };
 
-        firebase.database().ref("historico").push(historicoEntry)
+        // Caminho do Firebase agora é dinâmico
+        const baseRef = database.ref(`lixeiras/${currentLixeiraId}`);
+
+        baseRef.child("historico").push(historicoEntry)
             .then(() => {
                 console.log("Ativação manual salva no histórico");
                 atualizarHistoricoLocal(historicoEntry);
             })
             .catch((error) => console.error("Erro ao salvar ativação no histórico:", error));
 
-        firebase.database().ref("sensor/ativacaoManual").set(true)
+        baseRef.child("sensor/ativacaoManual").set(true)
             .then(() => {
                 console.log("Ativado por 1 segundo");
-                sistemaStatus.textContent = "Ativada";
-                sistemaStatus.className = "badge bg-success";
-
-                setTimeout(() => {
-                    firebase.database().ref("sensor/ativacaoManual").set(false)
-                        .then(() => {
-                            console.log("Desativado após 1 segundo");
-                            sistemaStatus.textContent = "Desativada";
-                            sistemaStatus.className = "badge bg-danger";
-                        })
-                        .catch((error) => {
-                            console.error("Erro ao desativar após 1 segundo:", error);
-                            alert("Erro ao desativar após leitura: " + error.message);
-                        });
-                }, 1000);
+                // (O listener 'on' cuidará de atualizar a UI)
             })
             .catch((error) => {
                 console.error("Erro ao ativar leitura:", error);
                 alert("Erro ao realizar nova leitura: " + error.message);
             });
+        
+        // A lógica de desativar (setTimeout) foi removida
+        // O listener 'on' de 'sensor/volume' já faz isso
     }
 
-    // Função para restaurar lixeira
+    // Função para restaurar lixeira (MODIFICADA para usar currentLixeiraId)
     function restaurarLixeira() {
-        console.log("Iniciando restauração da lixeira...");
+        console.log(`Iniciando restauração da lixeira ${currentLixeiraId}...`);
         const timestamp = Date.now();
         const historicoEntry = { type: "restaurar", timestamp };
 
-        firebase.database().ref("historico").push(historicoEntry)
+        // Caminho do Firebase agora é dinâmico
+        const baseRef = database.ref(`lixeiras/${currentLixeiraId}`);
+
+        baseRef.child("historico").push(historicoEntry)
             .then(() => {
                 console.log("Restauração salva no histórico");
                 atualizarHistoricoLocal(historicoEntry);
             })
             .catch((error) => console.error("Erro ao salvar restauração no histórico:", error));
 
-        // Redefinir altura usando novaLixeira e forçar volume para 0
-        firebase.database().ref("sensor/novaLixeira").set(true)
+        baseRef.child("sensor/novaLixeira").set(true)
             .then(() => {
                 console.log("novaLixeira definido como true");
-                // Forçar volume para 0 para garantir que o esvaziamento seja detectado
-                return firebase.database().ref("sensor/volume").set(0);
+                return baseRef.child("sensor/volume").set(0);
             })
             .then(() => {
                 console.log("Volume redefinido para 0 no Firebase");
-                alturaValue.textContent = "0 cm";
-
-                // Acionar ativação manual para recalcular altura
-                firebase.database().ref("sensor/ativacaoManual").set(true)
-                    .then(() => {
-                        console.log("Ativado por 1 segundo para recalcular altura");
-                        sistemaStatus.textContent = "Ativada";
-                        sistemaStatus.className = "badge bg-success";
-
-                        setTimeout(() => {
-                            firebase.database().ref("sensor/novaLixeira").set(false);
-                            firebase.database().ref("sensor/ativacaoManual").set(false)
-                                .then(() => {
-                                    console.log("Desativado após 1 segundo");
-                                    sistemaStatus.textContent = "Desativada";
-                                    sistemaStatus.className = "badge bg-danger";
-                                })
-                                .catch((error) => {
-                                    console.error("Erro ao desativar após recalcular altura:", error);
-                                    alert("Erro ao desativar após restauração: " + error.message);
-                                });
-                        }, 2000);
-                    })
-                    .catch((error) => {
-                        console.error("Erro ao ativar para recalcular altura:", error);
-                        alert("Erro ao restaurar lixeira: " + error.message);
-                    });
+                return baseRef.child("sensor/ativacaoManual").set(true);
+            })
+            .then(() => {
+                console.log("Ativado para recalcular altura");
+                // A lógica de desativar (setTimeout) foi removida
+                // O listener 'on' de 'sensor/volume' já faz isso
             })
             .catch((error) => {
                 console.error("Erro ao redefinir altura ou volume:", error);
@@ -278,247 +248,310 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
-    // Função para carregar histórico inicial
-    function carregarHistoricoInicial(database) {
-        return database.ref("historico").once("value").then((snapshot) => {
-            const historicoData = snapshot.val() || {};
-            historicoLocal = Object.values(historicoData).sort((a, b) => b.timestamp - a.timestamp);
-            atualizarHistoricoEVolumeMedio(historicoLocal);
-            console.log("Histórico inicial carregado:", historicoLocal.length, "entradas");
-        });
+
+    // ========== 6. LÓGICA PRINCIPAL DE CARREGAMENTO (Nova Estrutura) ==========
+
+    /**
+     * Reseta o estado e a UI para "carregando"
+     */
+    function resetUIState() {
+        console.log("Resetando UI e estado...");
+        // Resetar variáveis de estado
+        esvaziamentoTempos = [];
+        ultimoVolume = 0;
+        inicioEsvaziamentoTimestamp = null;
+        isFirstLoad = true;
+        alerta80Exibido = false;
+        mensagemWhatsAppEnviada = false;
+        ultimoRegistroTimestamp = 0;
+        historicoLocal = [];
+
+        // Resetar UI
+        sistemaStatus.textContent = "Carregando...";
+        sistemaStatus.className = "badge bg-secondary";
+        volumeValue.textContent = "0%";
+        volumeValue.className = "badge bg-info";
+        alturaValue.textContent = "...";
+        preenchimento.style.height = "0%";
+        atualizarCorPreenchimento(0);
+        alertaCritico.innerHTML = ""; // Limpar alerta
+        historicoList.innerHTML = '<li class="list-group-item text-center">Carregando...</li>';
+        cpuUsage.textContent = "0%";
+        latency.textContent = "0 ms";
+        ramUsage.textContent = "0%";
+        temperature.textContent = "0°C";
+        volumeMedioDisplay.style.width = "0%";
+        volumeMedioDisplay.setAttribute("aria-valuenow", 0);
+        volumeMedioDisplay.textContent = "0%";
+        volumeMedioText.textContent = "0%";
+        updateTempoMedioDisplay(0);
     }
 
-    // Função para inicializar a interface após carregar os dados
-    function inicializarInterface() {
-        firebase.initializeApp(firebaseConfig);
-        console.log("Firebase inicializado com sucesso");
-        const database = firebase.database();
+    /**
+     * Desliga todos os listeners ativos do Firebase
+     */
+    function detachAllListeners() {
+        if (refVolume) refVolume.off();
+        if (refAltura) refAltura.off();
+        if (refAtivacao) refAtivacao.off();
+        if (refSystemInfo) refSystemInfo.off();
+        console.log('Listeners antigos desligados.');
+    }
 
-        return firebase.auth().signInWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-                console.log("Autenticado com sucesso como:", userCredential.user.email);
+    /**
+     * Função principal: Carrega todos os dados da lixeira selecionada
+     * @param {string} lixeiraId (ex: "lixeira1")
+     */
+    function loadLixeiraData(lixeiraId) {
+        console.log(`Carregando dados para: ${lixeiraId}`);
+        currentLixeiraId = lixeiraId; // Atualiza o ID global
 
-                // Carregar dados iniciais em paralelo
-                const volumePromise = database.ref("sensor/volume").once("value");
-                const historicoPromise = carregarHistoricoInicial(database);
-                const esvaziamentosPromise = database.ref("esvaziamentos").once("value");
-                const systemInfoPromise = database.ref("system_info").once("value"); // Novo
+        // Atualiza o título da página
+        const lixeiraName = lixeiraId.charAt(0).toUpperCase() + lixeiraId.slice(1);
+        lixeiraTitle.textContent = lixeiraName.replace('a', 'a ');
 
-                return Promise.all([volumePromise, historicoPromise, esvaziamentosPromise, systemInfoPromise])
-                    .then(([volumeSnapshot, , esvaziamentosSnapshot, systemInfoSnapshot]) => {
-                        // Inicializar volume
-                        ultimoVolume = volumeSnapshot.val() || 0;
-                        volumeValue.textContent = `${Math.round(ultimoVolume)}%`; // Alterado para número inteiro
-                        if (ultimoVolume >= 80) {
-                            volumeValue.className = "badge bg-danger";
-                        } else if (ultimoVolume >= 70) {
-                            volumeValue.className = "badge bg-warning";
-                        } else {
-                            volumeValue.className = "badge bg-success";
+        // 1. Desliga todos os 'listeners' antigos
+        detachAllListeners();
+
+        // 2. Limpa a UI e reseta variáveis de estado
+        resetUIState();
+
+        // 3. Cria o caminho de referência base para a lixeira no Firebase
+        const baseRef = database.ref(`lixeiras/${lixeiraId}`);
+
+        // 4. Carregar dados iniciais (lógica da sua função `inicializarInterface`)
+        const volumePromise = baseRef.child("sensor/volume").once("value");
+        const historicoPromise = baseRef.child("historico").once("value");
+        const esvaziamentosPromise = baseRef.child("esvaziamentos").once("value");
+        const systemInfoPromise = baseRef.child("system_info").once("value");
+        const alturaPromise = baseRef.child("sensor/altura").once("value");
+
+        Promise.all([volumePromise, historicoPromise, esvaziamentosPromise, systemInfoPromise, alturaPromise])
+            .then(([volumeSnapshot, historicoSnapshot, esvaziamentosSnapshot, systemInfoSnapshot, alturaSnapshot]) => {
+                console.log("Dados iniciais carregados via .once()");
+
+                // Inicializar histórico
+                const historicoData = historicoSnapshot.val() || {};
+                historicoLocal = Object.values(historicoData).sort((a, b) => b.timestamp - a.timestamp);
+                atualizarHistoricoEVolumeMedio(historicoLocal);
+
+                // Inicializar volume
+                ultimoVolume = volumeSnapshot.val() || 0;
+                volumeValue.textContent = `${Math.round(ultimoVolume)}%`;
+                if (ultimoVolume >= 80) {
+                    volumeValue.className = "badge bg-danger";
+                } else if (ultimoVolume >= 70) {
+                    volumeValue.className = "badge bg-warning";
+                } else {
+                    volumeValue.className = "badge bg-success";
+                }
+                atualizarCorPreenchimento(ultimoVolume);
+                preenchimento.style.height = `${ultimoVolume}%`;
+
+                // Inicializar tempos de esvaziamento
+                const esvaziamentoData = esvaziamentosSnapshot.val() || {};
+                esvaziamentoTempos = Object.values(esvaziamentoData).map(item => item.tempo).slice(0, 5);
+                const tempoMedio = esvaziamentoTempos.length > 0
+                    ? Math.round(esvaziamentoTempos.reduce((a, b) => a + b, 0) / esvaziamentoTempos.length)
+                    : 0;
+                updateTempoMedioDisplay(tempoMedio);
+
+                // Inicializar system_info
+                const systemInfo = systemInfoSnapshot.val() || {};
+                cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
+                latency.textContent = `${systemInfo.latency || 0} ms`;
+                ramUsage.textContent = `${systemInfo.ramUsage || 0}%`;
+                temperature.textContent = `${systemInfo.temperature || 0}°C`;
+
+                // Inicializar altura
+                const altura = alturaSnapshot.val() || "N/D";
+                alturaValue.textContent = altura !== "N/D" ? `${Math.round(altura)} cm` : "N/D";
+
+                // Inicializar inicioEsvaziamentoTimestamp
+                if (ultimoVolume > 1) {
+                    const ultimaMedicao = historicoLocal.filter(entry => entry.type === "volume").slice(0, 1)[0];
+                    inicioEsvaziamentoTimestamp = ultimaMedicao ? ultimaMedicao.timestamp : Date.now();
+                } else {
+                    inicioEsvaziamentoTimestamp = null;
+                }
+                
+                // 5. Configurar listeners em tempo real (Sua lógica original, agora com refs dinâmicas)
+
+                // Listener para Volume
+                refVolume = baseRef.child("sensor/volume");
+                refVolume.on("value", (snapshot) => {
+                    const volume = snapshot.val() || 0;
+                    const currentTimestamp = Date.now();
+                    console.log("Volume recebido:", volume);
+
+                    // (Sua lógica de "Ativada/Desativada" ao receber volume)
+                    sistemaStatus.textContent = "Ativada";
+                    sistemaStatus.className = "badge bg-success";
+                    setTimeout(() => {
+                        sistemaStatus.textContent = "Desativada";
+                        sistemaStatus.className = "badge bg-danger";
+                    }, 1000);
+
+                    // Atualizar UI
+                    volumeValue.textContent = `${Math.round(volume)}%`;
+                    preenchimento.style.height = `${volume}%`;
+                    atualizarCorPreenchimento(volume);
+                    
+                    // Lógica de Alerta (WhatsApp e Alert)
+                    if (volume >= 80) {
+                        volumeValue.className = "badge bg-danger";
+                        // Alerta visual crítico
+                        alertaCritico.innerHTML = `
+                            <div class="alert alert-danger d-flex align-items-center" role="alert">
+                                <div>
+                                    <strong>NÍVEL CRÍTICO!</strong> A lixeira (${lixeiraTitle.textContent}) atingiu ${Math.round(volume)}% e precisa ser esvaziada.
+                                </div>
+                            </div>`;
+                        
+                        if (!alerta80Exibido) {
+                            alert(`Atenção! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.`);
+                            alerta80Exibido = true;
                         }
-                        atualizarCorPreenchimento(ultimoVolume);
-                        preenchimento.style.height = `${ultimoVolume}%`;
-
-                        // Inicializar tempos de esvaziamento
-                        const esvaziamentoData = esvaziamentosSnapshot.val() || {};
-                        esvaziamentoTempos = Object.values(esvaziamentoData).map(item => item.tempo).slice(0, 5);
-                        const tempoMedio = esvaziamentoTempos.length > 0
-                            ? Math.round(esvaziamentoTempos.reduce((a, b) => a + b, 0) / esvaziamentoTempos.length)
-                            : 0;
-                        updateTempoMedioDisplay(tempoMedio);
-
-                        // Inicializar system_info
-                        const systemInfo = systemInfoSnapshot.val() || {};
-                        cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
-                        latency.textContent = `${systemInfo.latency || 0} ms`;
-                        ramUsage.textContent = `${systemInfo.ramUsage || 0}%`;
-                        temperature.textContent = `${systemInfo.temperature || 0}°C`;
-
-                        // Inicializar inicioEsvaziamentoTimestamp com base no volume inicial
-                        if (ultimoVolume > 1) {
-                            const ultimaMedicao = historicoLocal.filter(entry => entry.type === "volume").slice(0, 1)[0];
-                            if (ultimaMedicao) {
-                                inicioEsvaziamentoTimestamp = ultimaMedicao.timestamp;
-                                console.log("Ciclo de esvaziamento iniciado com base no volume inicial. Timestamp:", new Date(inicioEsvaziamentoTimestamp).toLocaleString("pt-BR"));
-                            } else {
-                                inicioEsvaziamentoTimestamp = Date.now();
-                                console.log("Nenhuma medição de volume no histórico, usando timestamp atual:", new Date(inicioEsvaziamentoTimestamp).toLocaleString("pt-BR"));
-                            }
-                        } else {
-                            console.log("Volume inicial <= 1, ciclo de esvaziamento não iniciado.");
+                        if (!mensagemWhatsAppEnviada) {
+                            const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu ${Math.round(volume)}% de ocupação. Por favor, esvazie-a!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
+                            enviarMensagemWhatsApp(mensagem);
+                            mensagemWhatsAppEnviada = true;
                         }
+                    } else if (volume >= 70) {
+                        volumeValue.className = "badge bg-warning";
+                        alerta80Exibido = false;
+                        mensagemWhatsAppEnviada = false;
+                        alertaCritico.innerHTML = ""; // Limpa alerta
+                    } else {
+                        volumeValue.className = "badge bg-success";
+                        alerta80Exibido = false;
+                        mensagemWhatsAppEnviada = false;
+                        alertaCritico.innerHTML = ""; // Limpa alerta
+                    }
 
-                        // Configurar listeners em tempo real
-                        database.ref("sensor/volume").on("value", (snapshot) => {
-                            const volume = snapshot.val() || 0;
-                            const currentTimestamp = Date.now();
-                            console.log("Volume recebido:", volume, "Timestamp:", new Date(currentTimestamp).toLocaleString("pt-BR"));
+                    if (isFirstLoad) {
+                        isFirstLoad = false;
+                        ultimoVolume = volume;
+                        return;
+                    }
 
-                            // Indicar que uma leitura está acontecendo
-                            console.log("Ativado por 1 segundo (leitura automática de volume)");
-                            sistemaStatus.textContent = "Ativada";
-                            sistemaStatus.className = "badge bg-success";
+                    const diferencaVolume = Math.abs(volume - ultimoVolume);
+                    const tempoSuficiente = currentTimestamp - ultimoRegistroTimestamp > 5000;
 
-                            // Voltar para "Desativada" após 1 segundo
-                            setTimeout(() => {
-                                console.log("Desativado após 1 segundo (leitura automática de volume)");
-                                sistemaStatus.textContent = "Desativada";
-                                sistemaStatus.className = "badge bg-danger";
-                            }, 1000);
+                    // Lógica de esvaziamento
+                    if (volume > 1 && ultimoVolume <= 1 && inicioEsvaziamentoTimestamp === null) {
+                        inicioEsvaziamentoTimestamp = currentTimestamp;
+                        console.log("Início do ciclo de esvaziamento detectado.");
+                    }
 
-                            // Atualizar interface imediatamente
-                            volumeValue.textContent = `${Math.round(volume)}%`; // Alterado para número inteiro
-                            if (volume >= 80) {
-                                volumeValue.className = "badge bg-danger";
-                                console.log("Condição de 80% atingida. alerta80Exibido:", alerta80Exibido);
-                                if (!alerta80Exibido) {
-                                    alert("Atenção! O volume da lixeira atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.");
-                                    alerta80Exibido = true;
-                                    console.log("Alerta exibido na página.");
-                                }
-                                if (!mensagemWhatsAppEnviada) {
-                                    const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira atingiu ${Math.round(volume)}% de ocupação. Por favor, esvazie a lixeira o quanto antes!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`; // Alterado para número inteiro
-                                    enviarMensagemWhatsApp(mensagem);
-                                    mensagemWhatsAppEnviada = true;
-                                    console.log("Mensagem WhatsApp enviada.");
-                                }
-                            } else if (volume >= 70) {
-                                volumeValue.className = "badge bg-warning";
-                                alerta80Exibido = false;
-                                mensagemWhatsAppEnviada = false;
-                                console.log("Volume entre 70% e 79.9%. Flags resetadas.");
-                            } else {
-                                volumeValue.className = "badge bg-success";
-                                alerta80Exibido = false;
-                                mensagemWhatsAppEnviada = false;
-                                console.log("Volume abaixo de 70%. Flags resetadas.");
-                            }
+                    if (volume <= 2 && inicioEsvaziamentoTimestamp !== null) {
+                        const diffMilissegundos = currentTimestamp - inicioEsvaziamentoTimestamp;
+                        const tempoDecorrido = Math.floor(diffMilissegundos / (1000 * 60));
+                        console.log("Esvaziamento confirmado (min):", tempoDecorrido);
 
-                            atualizarCorPreenchimento(volume);
-                            preenchimento.style.height = `${volume}%`;
+                        if (tempoDecorrido > 0) {
+                            esvaziamentoTempos.push(tempoDecorrido);
+                            if (esvaziamentoTempos.length > 5) esvaziamentoTempos.shift();
 
-                            if (isFirstLoad) {
-                                console.log("Primeira leitura após carregamento, apenas atualizando interface.");
-                                isFirstLoad = false;
-                                ultimoVolume = volume; // Atualizar ultimoVolume na primeira carga
-                                return;
-                            }
+                            const esvaziamentoEntry = { tempo: tempoDecorrido, timestamp: currentTimestamp };
+                            baseRef.child("esvaziamentos").push(esvaziamentoEntry);
 
-                            // Verificar se houve mudança significativa no volume
-                            const diferencaVolume = Math.abs(volume - ultimoVolume);
-                            const tempoSuficiente = currentTimestamp - ultimoRegistroTimestamp > 5000; // 5 segundos
+                            const historicoEntry = { type: "esvaziamento", timestamp: currentTimestamp, tempo: tempoDecorrido };
+                            baseRef.child("historico").push(historicoEntry)
+                                .then(() => atualizarHistoricoLocal(historicoEntry));
 
-                            // Lógica de esvaziamento
-                            if (volume > 1 && ultimoVolume <= 1 && inicioEsvaziamentoTimestamp === null) {
-                                inicioEsvaziamentoTimestamp = currentTimestamp;
-                                console.log("Início do ciclo de esvaziamento detectado. Timestamp:", new Date(inicioEsvaziamentoTimestamp).toLocaleString("pt-BR"));
-                            }
+                            const tempoMedio = esvaziamentoTempos.length > 0
+                                ? Math.round(esvaziamentoTempos.reduce((a, b) => a + b, 0) / esvaziamentoTempos.length)
+                                : 0;
+                            updateTempoMedioDisplay(tempoMedio);
+                        }
+                        inicioEsvaziamentoTimestamp = null;
+                    }
 
-                            if (volume <= 2 && inicioEsvaziamentoTimestamp !== null) {
-                                console.log("Possível esvaziamento detectado: volume =", volume, "inicioEsvaziamentoTimestamp =", inicioEsvaziamentoTimestamp);
-                                const diffMilissegundos = currentTimestamp - inicioEsvaziamentoTimestamp;
-                                const tempoDecorrido = Math.floor(diffMilissegundos / (1000 * 60));
-                                console.log("Esvaziamento confirmado: volume =", volume, "Tempo decorrido (min) =", tempoDecorrido);
+                    // Salvar no histórico
+                    if ((diferencaVolume >= 0.5 || tempoSuficiente) && (diferencaVolume > 0 || tempoSuficiente)) {
+                        const historicoEntry = {
+                            type: "volume",
+                            volume: parseFloat(volume.toFixed(1)),
+                            timestamp: currentTimestamp
+                        };
+                        baseRef.child("historico").push(historicoEntry)
+                            .then(() => {
+                                ultimoRegistroTimestamp = currentTimestamp;
+                                atualizarHistoricoLocal(historicoEntry);
+                            });
+                    }
+                    ultimoVolume = volume;
+                });
 
-                                if (tempoDecorrido > 0) {
-                                    esvaziamentoTempos.push(tempoDecorrido);
-                                    if (esvaziamentoTempos.length > 5) esvaziamentoTempos.shift();
+                // Listener para system_info
+                refSystemInfo = baseRef.child("system_info");
+                refSystemInfo.on("value", (snapshot) => {
+                    const systemInfo = snapshot.val() || {};
+                    cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
+                    latency.textContent = `${systemInfo.latency || 0} ms`;
+                    ramUsage.textContent = `${systemInfo.ramUsage || 0}%`;
+                    temperature.textContent = `${systemInfo.temperature || 0}°C`;
+                });
 
-                                    const esvaziamentoEntry = { tempo: tempoDecorrido, timestamp: currentTimestamp };
-                                    database.ref("esvaziamentos").push(esvaziamentoEntry)
-                                        .then(() => console.log("Esvaziamento salvo no Firebase:", esvaziamentoEntry))
-                                        .catch((error) => {
-                                            console.error("Erro ao salvar esvaziamento no Firebase:", error);
-                                        });
+                // Listener para ativacaoManual
+                refAtivacao = baseRef.child("sensor/ativacaoManual");
+                refAtivacao.on("value", (snapshot) => {
+                    const estado = snapshot.val();
+                    sistemaStatus.textContent = estado ? "Ativada" : "Desativada";
+                    sistemaStatus.className = `badge bg-${estado ? "success" : "danger"}`;
+                });
 
-                                    const historicoEntry = { type: "esvaziamento", timestamp: currentTimestamp, tempo: tempoDecorrido };
-                                    database.ref("historico").push(historicoEntry)
-                                        .then(() => {
-                                            console.log("Esvaziamento salvo no histórico");
-                                            atualizarHistoricoLocal(historicoEntry);
-                                        })
-                                        .catch((error) => {
-                                            console.error("Erro ao salvar esvaziamento no histórico:", error);
-                                        });
+                // Listener para altura
+                refAltura = baseRef.child("sensor/altura");
+                refAltura.on("value", (snapshot) => {
+                    const altura = snapshot.val() || "N/D";
+                    alturaValue.textContent = altura !== "N/D" ? `${Math.round(altura)} cm` : "N/D";
+                });
 
-                                    const tempoMedio = esvaziamentoTempos.length > 0
-                                        ? Math.round(esvaziamentoTempos.reduce((a, b) => a + b, 0) / esvaziamentoTempos.length)
-                                        : 0;
-                                    updateTempoMedioDisplay(tempoMedio);
-                                    console.log("Tempo médio atualizado:", tempoMedio, "Tempos:", esvaziamentoTempos);
-                                } else {
-                                    console.log("Tempo decorrido inválido para esvaziamento:", tempoDecorrido);
-                                }
-
-                                inicioEsvaziamentoTimestamp = null;
-                            } else {
-                                console.log("Esvaziamento não detectado: volume =", volume, "inicioEsvaziamentoTimestamp =", inicioEsvaziamentoTimestamp);
-                            }
-
-                            // Salvar no histórico apenas se houver mudança significativa OU tempo suficiente
-                            if ((diferencaVolume >= 0.5 || tempoSuficiente) && (diferencaVolume > 0 || tempoSuficiente)) {
-                                const historicoEntry = { 
-                                    type: "volume", 
-                                    volume: parseFloat(volume.toFixed(1)), // Garantir que seja número
-                                    timestamp: currentTimestamp 
-                                };
-                                
-                                database.ref("historico").push(historicoEntry)
-                                    .then(() => {
-                                        console.log("Volume salvo no histórico:", historicoEntry);
-                                        ultimoRegistroTimestamp = currentTimestamp;
-                                        atualizarHistoricoLocal(historicoEntry);
-                                    })
-                                    .catch((error) => {
-                                        console.error("Erro ao salvar volume no histórico:", error);
-                                    });
-                            } else {
-                                console.log("Volume não salvo - diferença insuficiente:", diferencaVolume, "ou tempo insuficiente:", !tempoSuficiente);
-                            }
-
-                            // Atualizar ultimoVolume APÓS todas as verificações
-                            ultimoVolume = volume;
-                        });
-
-                        // Listener para system_info
-                        database.ref("system_info").on("value", (snapshot) => {
-                            const systemInfo = snapshot.val() || {};
-                            cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
-                            latency.textContent = `${systemInfo.latency || 0} ms`;
-                            ramUsage.textContent = `${systemInfo.ramUsage || 0}%`;
-                            temperature.textContent = `${systemInfo.temperature || 0}°C`;
-                            console.log("System info atualizado:", systemInfo);
-                        });
-
-                        database.ref("sensor/ativacaoManual").on("value", (snapshot) => {
-                            const estado = snapshot.val();
-                            console.log("Estado atual da ativação manual:", estado);
-                            sistemaStatus.textContent = estado ? "Ativada" : "Desativada";
-                            sistemaStatus.className = `badge bg-${estado ? "success" : "danger"}`;
-                            console.log("Interface atualizada - Status:", estado ? "Ativada" : "Desativada");
-                        });
-
-                        database.ref("sensor/altura").on("value", (snapshot) => {
-                            const altura = snapshot.val() || "N/D";
-                            console.log("Altura recebida:", altura);
-                            alturaValue.textContent = altura !== "N/D" ? `${Math.round(altura)} cm` : "N/D";
-                        });
-                    });
+            })
+            .catch((error) => {
+                console.error(`Erro ao carregar dados iniciais para ${lixeiraId}:`, error);
+                alert("Erro ao carregar dados da lixeira: " + error.message);
             });
     }
 
-    // Eventos
+    // ========== 7. INICIALIZAÇÃO DO APP ==========
+
+    // Inicializa o Firebase
+    firebase.initializeApp(firebaseConfig);
+    console.log("Firebase inicializado");
+    database = firebase.database();
+
+    // Inicializa os tooltips do Bootstrap
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+    // Adiciona 'listeners' de clique nos botões do menu lateral
+    document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('#sidebar .nav-link').forEach(nav => nav.classList.remove('active'));
+            e.target.classList.add('active');
+            const lixeiraId = e.target.getAttribute('data-lixeira-id');
+            loadLixeiraData(lixeiraId);
+        });
+    });
+
+    // Adiciona eventos aos botões de controle
     novaLeituraBtn.addEventListener("click", realizarNovaLeitura);
     restaurarLixeiraBtn.addEventListener("click", restaurarLixeira);
 
-    // Iniciar o sistema ao carregar a página
-    inicializarInterface()
+    // Autentica e carrega os dados da Lixeira 1
+    firebase.auth().signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            console.log("Autenticado com sucesso como:", userCredential.user.email);
+            // Carrega os dados da primeira lixeira ("lixeira1") ao iniciar a página
+            loadLixeiraData(currentLixeiraId);
+        })
         .catch((error) => {
-            console.error("Erro na inicialização:", error);
-            alert("Erro ao inicializar a aplicação: " + error.message);
+            console.error("Erro na autenticação:", error);
+            alert("Erro ao autenticar: " + error.message);
         });
 
-    // Inicializar os tooltips do Bootstrap
-    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 });
