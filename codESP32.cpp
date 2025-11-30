@@ -1,49 +1,41 @@
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
 
-// Helpers (obrigatórios para gerar tokens)
-#include <addons/TokenHelper.h>
-#include <addons/RTDBHelper.h>
+// =======================
+// CONFIGURAÇÕES
+// =======================
 
-// ============================
-// CONFIGURAÇÕES DE LOGIN
-// ============================
+// Firebase
 #define USER_EMAIL "lixeira1@gmail.com"
 #define USER_PASSWORD "lixeira123"
+#define API_KEY "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0"
+#define DATABASE_URL "https://lixeira-inteligente-esp32-default-rtdb.firebaseio.com/"
 
-// ============================
-// CONFIGURAÇÕES DO WIFI
-// ============================
+// Wi-Fi
 #define WIFI_SSID "ESP 32"
 #define WIFI_PASSWORD "81367566"
-
-// ============================
-// CONFIGURAÇÃO DO FIREBASE
-// ============================
-#define API_KEY "SUA_API_KEY_AQUI"
-#define DATABASE_URL "https://lixeira-inteligente-esp32-default-rtdb.firebaseio.com"
 
 // Objetos Firebase
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 
-// ============================
-// Pinos dos sensores ultrassônicos
-// ============================
+// =======================
+// PINOS DAS 5 LIXEIRAS
+// =======================
 const int TRIGGER_PINS[5] = {5, 12, 14, 27, 26};
 const int ECHO_PINS[5]    = {18, 19, 21, 22, 23};
 
-// Alturas máximas de cada lixeira
+// Altura máxima em cm
 float alturaMaxima[5] = {30, 30, 30, 30, 30};
 
-// Valores calculados
+// Leituras
 float alturas[5];
 int volumes[5];
 
-// ============================
-// Função de medição
-// ============================
+// ===================================
+// FUNÇÃO: medir distância (ultrassom)
+// ===================================
 float medirDistancia(int trigger, int echo) {
   digitalWrite(trigger, LOW);
   delayMicroseconds(4);
@@ -54,55 +46,89 @@ float medirDistancia(int trigger, int echo) {
   long duracao = pulseIn(echo, HIGH, 30000);
   float distancia = duracao * 0.034 / 2;
 
-  if (distancia <= 0 || distancia > 400)
-    return -1;
-
+  if (distancia <= 0 || distancia > 400) return -1;
   return distancia;
 }
 
-// ============================
+// ===================================
+// FUNÇÃO: registrar evento no histórico
+// ===================================
+void registrarHistorico(int index, String tipoEvento) {
+  String path = "/lixeiras/lixeira" + String(index + 1) + "/historico";
+
+  // Criar nó automático
+  if (Firebase.RTDB.push(&fbdo, path, "")) {
+
+    String id = fbdo.pushName();  // id gerado automaticamente
+
+    // Gravar timestamp
+    Firebase.RTDB.setInt(&fbdo, path + "/" + id + "/timestamp", millis());
+
+    // Gravar tipo do evento
+    Firebase.RTDB.setString(&fbdo, path + "/" + id + "/type", tipoEvento);
+
+    Serial.println("Histórico registrado para lixeira " + String(index + 1) + " | " + tipoEvento);
+  }
+}
+
+// ===================================
+// FUNÇÃO: criar estrutura inicial
+// ===================================
+void inicializarEstruturaFirebase() {
+  for (int i = 0; i < 5; i++) {
+    String sensorPath = "/lixeiras/lixeira" + String(i + 1) + "/sensor";
+
+    Firebase.RTDB.setFloat(&fbdo, sensorPath + "/altura", 0);
+    Firebase.RTDB.setInt(&fbdo, sensorPath + "/volume", 0);
+    Firebase.RTDB.setBool(&fbdo, sensorPath + "/ativacaoManual", false);
+    Firebase.RTDB.setBool(&fbdo, sensorPath + "/novaLixeira", false);
+
+    registrarHistorico(i, "inicialização");
+  }
+}
+
+// ===================================
 // SETUP
-// ============================
+// ===================================
 void setup() {
   Serial.begin(115200);
 
-  // Configura pinos dos sensores
+  // Configurar pinos
   for (int i = 0; i < 5; i++) {
     pinMode(TRIGGER_PINS[i], OUTPUT);
     pinMode(ECHO_PINS[i], INPUT);
   }
 
-  // Conexão Wi-Fi
+  // Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Conectando ao WiFi");
+  Serial.print("Conectando");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(300);
     Serial.print(".");
+    delay(300);
   }
   Serial.println("\nWiFi conectado!");
 
-  // Configuração Firebase
+  // Firebase config
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
-
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
 
-  // Inicializa o Firebase
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
+
+  // Criar estrutura no Firebase
+  inicializarEstruturaFirebase();
 }
 
-// ============================
+// ===================================
 // LOOP PRINCIPAL
-// ============================
+// ===================================
 void loop() {
 
   for (int i = 0; i < 5; i++) {
 
-    // =======================
-    // Medição
-    // =======================
+    // Ler sensor
     float distancia = medirDistancia(TRIGGER_PINS[i], ECHO_PINS[i]);
     alturas[i] = distancia;
 
@@ -116,41 +142,36 @@ void loop() {
       if (volumes[i] > 100) volumes[i] = 100;
     }
 
-    // Caminho no Firebase
-    String base = "/lixeiras/lixeira" + String(i + 1) + "/sensor";
+    String sensorPath = "/lixeiras/lixeira" + String(i + 1) + "/sensor";
 
-    // =======================
-    // Envia dados
-    // =======================
-    Firebase.RTDB.setFloat(&fbdo, base + "/altura", alturas[i]);
-    Firebase.RTDB.setInt(&fbdo, base + "/volume", volumes[i]);
+    // Atualizar Firebase
+    Firebase.RTDB.setFloat(&fbdo, sensorPath + "/altura", alturas[i]);
+    Firebase.RTDB.setInt(&fbdo, sensorPath + "/volume", volumes[i]);
 
-    // =======================
-    // Lê comandos
-    // =======================
-    bool ativacaoManual = false;
-    bool novaLixeira = false;
+    // Ler comandos
+    bool ativManual = false;
+    bool novaLix = false;
 
-    if (Firebase.RTDB.getBool(&fbdo, base + "/ativacaoManual"))
-      ativacaoManual = fbdo.boolData();
+    Firebase.RTDB.getBool(&fbdo, sensorPath + "/ativacaoManual");
+    ativManual = fbdo.boolData();
 
-    if (Firebase.RTDB.getBool(&fbdo, base + "/novaLixeira"))
-      novaLixeira = fbdo.boolData();
+    Firebase.RTDB.getBool(&fbdo, sensorPath + "/novaLixeira");
+    novaLix = fbdo.boolData();
 
-    // Comando: nova leitura manual
-    if (ativacaoManual) {
-      Firebase.RTDB.setBool(&fbdo, base + "/ativacaoManual", false);
-      Serial.println("Leitura manual na lixeira " + String(i + 1));
+    // Evento: ativação manual
+    if (ativManual) {
+      Firebase.RTDB.setBool(&fbdo, sensorPath + "/ativacaoManual", false);
+      registrarHistorico(i, "ativação");
     }
 
-    // Comando: reset da lixeira
-    if (novaLixeira) {
-      Firebase.RTDB.setBool(&fbdo, base + "/novaLixeira", false);
-      Firebase.RTDB.setInt(&fbdo, base + "/volume", 0);
-      Serial.println("Lixeira restaurada: " + String(i + 1));
+    // Evento: redefinir lixeira
+    if (novaLix) {
+      Firebase.RTDB.setBool(&fbdo, sensorPath + "/novaLixeira", false);
+      Firebase.RTDB.setInt(&fbdo, sensorPath + "/volume", 0);
+      registrarHistorico(i, "reset");
     }
 
-    delay(300);
+    delay(200);
   }
 
   delay(1000);
