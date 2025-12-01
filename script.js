@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // ========== 1. CONFIGURAÇÃO FIREBASE E AUTENTICAÇÃO ==========
+    // ========== 1. CONFIGURAÇÃO FIREBASE E  AUTENTICAÇÃO ==========
     const firebaseConfig = {
         apiKey: "AIzaSyDay7Mjm7dzdeVnXvF_z7vOj8jwhVmVTe0",
         authDomain: "lixeira-inteligente-esp32.firebaseapp.com",
