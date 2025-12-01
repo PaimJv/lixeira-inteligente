@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termos e Condições</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- CSS Inline para manter o padrão visual -->
+    <style>
+        body {
+            background: linear-gradient(135deg, #005bea, #00c6fb);
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+
+        .terms-box {
+            background: #fff;
+            width: 90%;
+            max-width: 650px;
+            padding: 35px;
+            border-radius: 15px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            animation: fadeIn 0.6s ease;
+        }
+
+        .terms-title {
+            text-align: center;
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+
+        .terms-text {
+            height: 280px;
+            overflow-y: auto;
+            padding-right: 10px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 10px;
+            background: #fafafa;
+            font-size: 15px;
+        }
+
+        /* Scroll bonito */
+        .terms-text::-webkit-scrollbar {
+            width: 8px;
+        }
+        .terms-text::-webkit-scrollbar-thumb {
+            background: #007bff;
+            border-radius: 8px;
+        }
+
+        .btn-accept {
+            width: 100%;
+            font-size: 18px;
+            margin-top: 20px;
+            padding: 12px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="terms-box">
+        <h2 class="terms-title">📄 Termos e Condições de Uso</h2>
+
+        <div class="terms-text">
+            <p>
+                Bem-vindo ao sistema da <strong>Lixeira Inteligente</strong>.  
+                Para continuar utilizando o sistema, é necessário aceitar os termos descritos abaixo.
+            </p>
+
+            <p><strong>1. Uso do Sistema</strong><br>
+            Você concorda em utilizar o sistema de forma responsável, sem tentar causar danos, fraudes ou manipulação inadequada dos dados.</p>
+
+            <p><strong>2. Coleta de Dados</strong><br>
+            O sistema coleta informações referentes ao funcionamento das lixeiras, como leituras de sensores,
+            histórico de ações e estatísticas de volume. Nenhuma informação pessoal é armazenada.</p>
+
+            <p><strong>3. Segurança</strong><br>
+            O acesso ao sistema é protegido e monitorado. Qualquer tentativa de uso indevido poderá resultar em bloqueio.</p>
+
+            <p><strong>4. Responsabilidade</strong><br>
+            Não nos responsabilizamos por mal funcionamento de dispositivos físicos conectados,
+            quedas de energia ou falhas de conexão com a internet.</p>
+
+            <p><strong>5. Aceite</strong><br>
+            Ao clicar em <strong>"Aceitar"</strong>, você declara estar de acordo com todos os termos apresentados.</p>
+
+        </div>
+
+        <button id="aceitarTermos" class="btn btn-primary btn-accept">Aceitar e Continuar</button>
+    </div>
+
+    <script>
+        document.getElementById("aceitarTermos").addEventListener("click", () => {
+            // Salva o aceite
+            localStorage.setItem("ACEITOU_TERMOS", "true");
+
+            // Redireciona para home
+            window.location.href = "home.html";
+        });
+    </script>
+
+</body>
+</html>
