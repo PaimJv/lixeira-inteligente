@@ -41,7 +41,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const alertaCritico = document.getElementById("alertaCritico"); // Faltava no seu JS original, mas estava no meu
 
     // ========== 3. VARIÁVEIS GLOBAIS DE ESTADO E CONTROLE ==========
-
     // ID da lixeira sendo exibida no momento
     let currentLixeiraId = 'lixeira1';
     let database; // Referência global para o DB do Firebase
@@ -60,7 +59,6 @@ document.addEventListener("DOMContentLoaded", function () {
     let historicoLocal = [];
 
     // ========== 4. FUNÇÕES AUXILIARES (CallMeBot, UI) ==========
-
     // Função para enviar mensagem via WhatsApp (Sua função original)
     function enviarMensagemWhatsApp(mensagem) {
         const url = `https://api.callmebot.com/whatsapp.php?phone=${numeroWhatsApp}&text=${encodeURIComponent(mensagem)}&apikey=${callMeBotApiKey}`;
@@ -181,7 +179,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ========== 5. FUNÇÕES DE CONTROLE (Modificadas) ==========
-
     // Função para realizar nova leitura (MODIFICADA para usar currentLixeiraId)
     function realizarNovaLeitura() {
         console.log(`Iniciando nova leitura para ${currentLixeiraId}...`);
@@ -248,9 +245,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
-
     // ========== 6. LÓGICA PRINCIPAL DE CARREGAMENTO (Nova Estrutura) ==========
-
     /**
      * Reseta o estado e a UI para "carregando"
      */
@@ -291,11 +286,15 @@ document.addEventListener("DOMContentLoaded", function () {
      * Desliga todos os listeners ativos do Firebase
      */
     function detachAllListeners() {
-        if (refVolume) refVolume.off();
-        if (refAltura) refAltura.off();
-        if (refAtivacao) refAtivacao.off();
-        if (refSystemInfo) refSystemInfo.off();
-        console.log('Listeners antigos desligados.');
+        try {
+            if (refVolume && typeof refVolume.off === 'function') refVolume.off();
+            if (refAltura && typeof refAltura.off === 'function') refAltura.off();
+            if (refAtivacao && typeof refAtivacao.off === 'function') refAtivacao.off();
+            if (refSystemInfo && typeof refSystemInfo.off === 'function') refSystemInfo.off();
+            console.log('Listeners antigos desligados.');
+        } catch (err) {
+            console.warn('Erro ao tentar desligar listeners:', err);
+        }
     }
 
     /**
@@ -306,9 +305,15 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log(`Carregando dados para: ${lixeiraId}`);
         currentLixeiraId = lixeiraId; // Atualiza o ID global
 
-        // Atualiza o título da página
-        const lixeiraName = lixeiraId.charAt(0).toUpperCase() + lixeiraId.slice(1);
-        lixeiraTitle.textContent = lixeiraName.replace('a', 'a ');
+        // Atualiza o título da página: tenta pegar o texto do menu lateral pelo data-lixeira-id
+        const sidebarLink = document.querySelector(`#sidebar .nav-link[data-lixeira-id="${lixeiraId}"]`);
+        if (sidebarLink && sidebarLink.textContent && sidebarLink.textContent.trim() !== '') {
+            lixeiraTitle.textContent = sidebarLink.textContent.trim();
+        } else {
+            // fallback: mantém o comportamento anterior (ex: "Lixeira 1")
+            const lixeiraName = lixeiraId.charAt(0).toUpperCase() + lixeiraId.slice(1);
+            lixeiraTitle.textContent = lixeiraName;
+        }
 
         // 1. Desliga todos os 'listeners' antigos
         detachAllListeners();
@@ -517,7 +522,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ========== 7. INICIALIZAÇÃO DO APP ==========
-
     // Inicializa o Firebase
     firebase.initializeApp(firebaseConfig);
     console.log("Firebase inicializado");
@@ -533,19 +537,34 @@ document.addEventListener("DOMContentLoaded", function () {
             e.preventDefault();
             document.querySelectorAll('#sidebar .nav-link').forEach(nav => nav.classList.remove('active'));
             e.target.classList.add('active');
+
+            // ❗️ Correção: atualiza o título com o texto do item do menu (ex: "Papel")
+            if (e.target && e.target.textContent) {
+                lixeiraTitle.textContent = e.target.textContent.trim();
+            }
+
             const lixeiraId = e.target.getAttribute('data-lixeira-id');
             loadLixeiraData(lixeiraId);
         });
     });
 
     // Adiciona eventos aos botões de controle
-    novaLeituraBtn.addEventListener("click", realizarNovaLeitura);
-    restaurarLixeiraBtn.addEventListener("click", restaurarLixeira);
+    if (novaLeituraBtn) novaLeituraBtn.addEventListener("click", realizarNovaLeitura);
+    if (restaurarLixeiraBtn) restaurarLixeiraBtn.addEventListener("click", restaurarLixeira);
 
     // Autentica e carrega os dados da Lixeira 1
     firebase.auth().signInWithEmailAndPassword(email, password)
         .then((userCredential) => {
             console.log("Autenticado com sucesso como:", userCredential.user.email);
+
+            // Marca no menu lateral a lixeira atual (se existir) e define o título corretamente
+            const initialLink = document.querySelector(`#sidebar .nav-link[data-lixeira-id="${currentLixeiraId}"]`);
+            if (initialLink) {
+                document.querySelectorAll('#sidebar .nav-link').forEach(nav => nav.classList.remove('active'));
+                initialLink.classList.add('active');
+                if (initialLink.textContent) lixeiraTitle.textContent = initialLink.textContent.trim();
+            }
+
             // Carrega os dados da primeira lixeira ("lixeira1") ao iniciar a página
             loadLixeiraData(currentLixeiraId);
         })
