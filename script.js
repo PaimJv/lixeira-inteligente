@@ -213,6 +213,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
+   
     // Função para restaurar lixeira
     function restaurarLixeira() {
         console.log(`Iniciando restauração da lixeira ${currentLixeiraId}...`);
@@ -239,21 +240,28 @@ document.addEventListener("DOMContentLoaded", function () {
                 return baseRef.child("sensor/ativacaoManual").set(true);
             })
             .then(() => {
-                console.log("Ativado para recalcular altura. Desligando em 3 segundos...");
+                console.log("Ativado para recalcular altura. Desligando flags em 5 segundos...");
                 
-                // Retorno da lógica de Timer: Desliga a ativação independente do sucesso da leitura
+                // Lógica de Timer Expandida: Desliga a ativação E a flag de calibração
                 setTimeout(() => {
+                    // Desliga a ativação manual normalmente
                     baseRef.child("sensor/ativacaoManual").set(false)
-                        .then(() => console.log("ativacaoManual resetada para false após restauração."))
                         .catch(err => console.error("Erro ao resetar ativacaoManual:", err));
-                }, 3000);
+                    
+                    // FAIL-SAFE: Garante que a flag de nova lixeira não fique presa em 'true'
+                    // Caso o ESP32 já tenha alterado para 'false' com sucesso, isso apenas sobrescreve com 'false', sem impacto.
+                    baseRef.child("sensor/novaLixeira").set(false)
+                        .then(() => console.log("novaLixeira resetada para false pela proteção do sistema web."))
+                        .catch(err => console.error("Erro ao resetar novaLixeira:", err));
+
+                }, 5000); // 5 segundos dão ao ESP32 tempo para executar as rotinas de anti-ruído
             })
             .catch((error) => {
                 console.error("Erro ao redefinir altura ou volume:", error);
                 alert("Erro ao restaurar lixeira: " + error.message);
             });
     }
-
+    
     // ========== 6. LÓGICA PRINCIPAL DE CARREGAMENTO (Nova Estrutura) ==========
     /**
      * Reseta o estado e a UI para "carregando"
