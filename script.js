@@ -345,7 +345,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const volumePromise = baseRef.child("sensor/volume").once("value");
         const historicoPromise = baseRef.child("historico").once("value");
         const esvaziamentosPromise = baseRef.child("esvaziamentos").once("value");
-        const systemInfoPromise = baseRef.child("system_info").once("value");
+        const systemInfoPromise = database.ref("system_info").once("value");
         const alturaPromise = baseRef.child("sensor/altura").once("value");
 
         Promise.all([volumePromise, historicoPromise, esvaziamentosPromise, systemInfoPromise, alturaPromise])
@@ -507,7 +507,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
 
                 // Listener para system_info
-                refSystemInfo = baseRef.child("system_info");
+                refSystemInfo = database.child("system_info");
                 refSystemInfo.on("value", (snapshot) => {
                     const systemInfo = snapshot.val() || {};
                     cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
