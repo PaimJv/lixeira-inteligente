@@ -179,7 +179,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ========== 5. FUNÇÕES DE CONTROLE (Modificadas) ==========
-    // Função para realizar nova leitura (MODIFICADA para usar currentLixeiraId)
+    
+    // Função para realizar nova leitura
     function realizarNovaLeitura() {
         console.log(`Iniciando nova leitura para ${currentLixeiraId}...`);
         const timestamp = Date.now();
@@ -197,19 +198,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
         baseRef.child("sensor/ativacaoManual").set(true)
             .then(() => {
-                console.log("Ativado por 1 segundo");
-                // (O listener 'on' cuidará de atualizar a UI)
+                console.log("Sinal de ativação enviado. Desligando em 3 segundos...");
+                
+                // Retorno da lógica de Timer: Garante que a medição será pontual e não contínua
+                setTimeout(() => {
+                    baseRef.child("sensor/ativacaoManual").set(false)
+                        .then(() => console.log("ativacaoManual resetada para false com sucesso."))
+                        .catch(err => console.error("Erro ao resetar ativacaoManual:", err));
+                }, 3000); 
             })
             .catch((error) => {
                 console.error("Erro ao ativar leitura:", error);
                 alert("Erro ao realizar nova leitura: " + error.message);
             });
-        
-        // A lógica de desativar (setTimeout) foi removida
-        // O listener 'on' de 'sensor/volume' já faz isso
     }
 
-    // Função para restaurar lixeira (MODIFICADA para usar currentLixeiraId)
+    // Função para restaurar lixeira
     function restaurarLixeira() {
         console.log(`Iniciando restauração da lixeira ${currentLixeiraId}...`);
         const timestamp = Date.now();
@@ -235,9 +239,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 return baseRef.child("sensor/ativacaoManual").set(true);
             })
             .then(() => {
-                console.log("Ativado para recalcular altura");
-                // A lógica de desativar (setTimeout) foi removida
-                // O listener 'on' de 'sensor/volume' já faz isso
+                console.log("Ativado para recalcular altura. Desligando em 3 segundos...");
+                
+                // Retorno da lógica de Timer: Desliga a ativação independente do sucesso da leitura
+                setTimeout(() => {
+                    baseRef.child("sensor/ativacaoManual").set(false)
+                        .then(() => console.log("ativacaoManual resetada para false após restauração."))
+                        .catch(err => console.error("Erro ao resetar ativacaoManual:", err));
+                }, 3000);
             })
             .catch((error) => {
                 console.error("Erro ao redefinir altura ou volume:", error);
