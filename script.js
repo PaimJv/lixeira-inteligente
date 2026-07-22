@@ -507,7 +507,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
 
                 // Listener para system_info
-                refSystemInfo = database.child("system_info");
+                refSystemInfo = database.ref("system_info");
                 refSystemInfo.on("value", (snapshot) => {
                     const systemInfo = snapshot.val() || {};
                     cpuUsage.textContent = `${systemInfo.cpuUsage || 0}%`;
