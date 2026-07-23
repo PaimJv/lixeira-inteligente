@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const password = "lixeira123";
 
     // ========== CREDENCIAIS TELEGRAM ==========
-    const telegramBotToken = "8882849745"; // Coloque o token do BotFather
+    const telegramBotToken = "8882849745:AAHohj7tRtZ-HRwtzcVYf4daEaG8xZhc0-4"; // Coloque o token do BotFather
     const telegramChatId = "-5252595236"; // Coloque o seu ID numérico
 
     // // Configurações para o CallMeBot
