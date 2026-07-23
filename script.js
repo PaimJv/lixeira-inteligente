@@ -61,6 +61,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // let mensagemWhatsAppEnviada = false;
     let mensagemTelegram70Enviada = false;
     let mensagemTelegram80Enviada = false;    
+    let ultimoVolumeNotificado = -1;
     let ultimoRegistroTimestamp = 0;
     let historicoLocal = [];
 
@@ -316,6 +317,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Resetar variáveis de alerta
         alerta70Exibido = false;
         alerta80Exibido = false;
+        ultimoVolumeNotificado = -1;
         mensagemTelegram70Enviada = false;
         mensagemTelegram80Enviada = false;
 
@@ -460,109 +462,72 @@ document.addEventListener("DOMContentLoaded", function () {
                     preenchimento.style.height = `${volume}%`;
                     atualizarCorPreenchimento(volume);
                     
-                    // // Lógica de Alerta (WhatsApp e Alert)
-                    // if (volume >= 80) {
-                    //     volumeValue.className = "badge bg-danger";
-                    //     // Alerta visual crítico
-                    //     alertaCritico.innerHTML = `
-                    //         <div class="alert alert-danger d-flex align-items-center" role="alert">
-                    //             <div>
-                    //                 <strong>NÍVEL CRÍTICO!</strong> A lixeira (${lixeiraTitle.textContent}) atingiu ${Math.round(volume)}% e precisa ser esvaziada.
-                    //             </div>
-                    //         </div>`;
-                        
-                    //     if (!alerta80Exibido) {
-                    //         alert(`Atenção! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.`);
-                    //         alerta80Exibido = true;
-                    //     }
-                    //     if (!mensagemWhatsAppEnviada) {
-                    //         const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu ${Math.round(volume)}% de ocupação. Por favor, esvazie-a!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
-                    //         enviarMensagemWhatsApp(mensagem);
-                    //         mensagemWhatsAppEnviada = true;
-                    //     }
-                    // } else if (volume >= 70) {
-                    //     volumeValue.className = "badge bg-warning";
-                    //     alerta80Exibido = false;
-                    //     mensagemWhatsAppEnviada = false;
-                    //     alertaCritico.innerHTML = ""; // Limpa alerta
-                    // } else {
-                    //     volumeValue.className = "badge bg-success";
-                    //     alerta80Exibido = false;
-                    //     mensagemWhatsAppEnviada = false;
-                    //     alertaCritico.innerHTML = ""; // Limpa alerta
-                    // }
+                    // Lógica de Alerta (Telegram Atualizado a cada mudança)
+                    const volArredondado = Math.round(volume);
 
-                    // Lógica de Alerta (Telegram e Alert em 2 Estágios)
                     if (volume >= 80) {
                         volumeValue.className = "badge bg-danger";
                         
-                        // Alerta visual crítico na interface
                         alertaCritico.innerHTML = `
                             <div class="alert alert-danger d-flex align-items-center" role="alert">
                                 <div>
-                                    <strong>🚨 NÍVEL CRÍTICO!</strong> A lixeira (${lixeiraTitle.textContent}) atingiu ${Math.round(volume)}% e precisa ser esvaziada.
+                                    <strong>🚨 NÍVEL CRÍTICO!</strong> A lixeira (${lixeiraTitle.textContent}) atingiu ${volArredondado}% e precisa ser esvaziada.
                                 </div>
                             </div>`;
                         
-                        // Garante que o de 70% não seja engatilhado se o lixo baixar para 75%
-                        alerta70Exibido = true;
-                        mensagemTelegram70Enviada = true; 
+                        alerta70Exibido = true; 
 
-                        // 1º PASSO: ENVIO PARA O TELEGRAM (Sem bloqueios)
-                        if (!mensagemTelegram80Enviada) {
-                            const mensagem80 = `🚨 *NÍVEL CRÍTICO!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu *${Math.round(volume)}%* de ocupação. Por favor, realizar o esvaziamento imediatamente.\n\n📅 Data/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
+                        // 1º PASSO: TELEGRAM - Dispara sempre que houver uma nova porcentagem diferente
+                        if (volArredondado !== ultimoVolumeNotificado) {
+                            const mensagem80 = `🚨 *NÍVEL CRÍTICO!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu *${volArredondado}%* de ocupação. Por favor, realizar o esvaziamento imediatamente.\n\n📅 Data/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
                             enviarMensagemTelegram(mensagem80);
-                            mensagemTelegram80Enviada = true; 
+                            ultimoVolumeNotificado = volArredondado; // Atualiza o rastreador
                         }
 
-                        // 2º PASSO: ALERTA DE NAVEGADOR (Assíncrono)
+                        // 2º PASSO: NAVEGADOR - Dispara apenas 1 vez por faixa para não travar a tela
                         if (!alerta80Exibido) {
                             alerta80Exibido = true;
                             setTimeout(() => {
-                                alert(`NÍVEL CRÍTICO! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.`);
-                            }, 500); // 500ms de atraso garante que o fetch do Telegram já saiu da máquina
+                                alert(`NÍVEL CRÍTICO! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%.`);
+                            }, 500);
                         }
 
                     } else if (volume >= 70) {
                         volumeValue.className = "badge bg-warning";
                         
-                        // Alerta visual de Atenção na interface
                         alertaCritico.innerHTML = `
                             <div class="alert alert-warning d-flex align-items-center" role="alert">
                                 <div>
-                                    <strong>⚠️ Atenção!</strong> A lixeira (${lixeiraTitle.textContent}) está em ${Math.round(volume)}%.
+                                    <strong>⚠️ Atenção!</strong> A lixeira (${lixeiraTitle.textContent}) está em ${volArredondado}%.
                                 </div>
                             </div>`;
 
-                        // Libera o alerta de 80% para disparar se o volume subir
                         alerta80Exibido = false;
-                        mensagemTelegram80Enviada = false;
 
-                        // 1º PASSO: ENVIO PARA O TELEGRAM (Sem bloqueios)
-                        if (!mensagemTelegram70Enviada) {
-                            const mensagem70 = `⚠️ *Atenção!* A lixeira *${lixeiraTitle.textContent}* está em *${Math.round(volume)}%*.\n\n📅 Data/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
+                        // 1º PASSO: TELEGRAM - Dispara sempre que houver uma nova porcentagem diferente
+                        if (volArredondado !== ultimoVolumeNotificado) {
+                            const mensagem70 = `⚠️ *Atenção!* A lixeira *${lixeiraTitle.textContent}* está em *${volArredondado}%*.\n\n📅 Data/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
                             enviarMensagemTelegram(mensagem70);
-                            mensagemTelegram70Enviada = true;
+                            ultimoVolumeNotificado = volArredondado; // Atualiza o rastreador
                         }
 
-                        // 2º PASSO: ALERTA DE NAVEGADOR (Assíncrono)
+                        // 2º PASSO: NAVEGADOR - Dispara apenas 1 vez por faixa para não travar a tela
                         if (!alerta70Exibido) {
                             alerta70Exibido = true;
                             setTimeout(() => {
-                                alert(`Atenção! A lixeira (${lixeiraTitle.textContent}) está em ${Math.round(volume)}%.`);
+                                alert(`Atenção! A lixeira (${lixeiraTitle.textContent}) está em ${volArredondado}%.`);
                             }, 500);
                         }
 
                     } else {
                         // Volume abaixo de 70% (Lixeira esvaziada)
                         volumeValue.className = "badge bg-success";
-                        alertaCritico.innerHTML = ""; // Limpa os alertas de tela
+                        alertaCritico.innerHTML = ""; 
                         
-                        // Rearma TODOS os gatilhos para o próximo ciclo
+                        // Rearma gatilhos do navegador e zera o rastreador do Telegram
                         alerta70Exibido = false;
                         alerta80Exibido = false;
-                        mensagemTelegram70Enviada = false;
-                        mensagemTelegram80Enviada = false; 
+                        ultimoVolumeNotificado = -1; 
                     }
 
                     if (isFirstLoad) {
