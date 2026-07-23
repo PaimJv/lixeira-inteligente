@@ -14,9 +14,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const email = "lixeira1@gmail.com";
     const password = "lixeira123";
 
-    // Configurações para o CallMeBot
-    const callMeBotApiKey = "3113566"; // Sua API Key do CallMeBot
-    const numeroWhatsApp = "+557592230180"; // Seu número de destino
+    // ========== CREDENCIAIS TELEGRAM ==========
+    const telegramBotToken = "8882849745"; // Coloque o token do BotFather
+    const telegramChatId = "-5252595236"; // Coloque o seu ID numérico
+
+    // // Configurações para o CallMeBot
+    // const callMeBotApiKey = "3113566"; // Sua API Key do CallMeBot
 
     // ========== 2. ELEMENTOS DA INTERFACE ==========
     // Título dinâmico
@@ -54,24 +57,56 @@ document.addEventListener("DOMContentLoaded", function () {
     let inicioEsvaziamentoTimestamp = null;
     let isFirstLoad = true;
     let alerta80Exibido = false;
-    let mensagemWhatsAppEnviada = false;
+    // let mensagemWhatsAppEnviada = false;
+    let mensagemTelegramEnviada = false;
     let ultimoRegistroTimestamp = 0;
     let historicoLocal = [];
 
     // ========== 4. FUNÇÕES AUXILIARES (CallMeBot, UI) ==========
     // Função para enviar mensagem via WhatsApp (Sua função original)
-    function enviarMensagemWhatsApp(mensagem) {
-        const url = `https://api.callmebot.com/whatsapp.php?phone=${numeroWhatsApp}&text=${encodeURIComponent(mensagem)}&apikey=${callMeBotApiKey}`;
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Erro ao enviar mensagem WhatsApp: ${response.statusText}`);
-                }
-                console.log("Mensagem WhatsApp enviada com sucesso!");
-            })
-            .catch(error => {
-                console.error("Erro ao enviar mensagem WhatsApp:", error);
-            });
+    // function enviarMensagemWhatsApp(mensagem) {
+    //     const url = `https://api.callmebot.com/whatsapp.php?phone=${numeroWhatsApp}&text=${encodeURIComponent(mensagem)}&apikey=${callMeBotApiKey}`;
+    //     fetch(url)
+    //         .then(response => {
+    //             if (!response.ok) {
+    //                 throw new Error(`Erro ao enviar mensagem WhatsApp: ${response.statusText}`);
+    //             }
+    //             console.log("Mensagem WhatsApp enviada com sucesso!");
+    //         })
+    //         .catch(error => {
+    //             console.error("Erro ao enviar mensagem WhatsApp:", error);
+    //         });
+    // }
+
+    // ========== 4. FUNÇÕES AUXILIARES (UI e API) ==========
+    
+    // Nova função para enviar mensagem via API oficial do Telegram
+    function enviarMensagemTelegram(mensagem) {
+        const url = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
+        
+        // Monta o pacote de dados (payload)
+        const data = {
+            chat_id: telegramChatId,
+            text: mensagem,
+            parse_mode: "Markdown" // Permite o uso de *negrito* no alerta
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro ao enviar mensagem Telegram: ${response.statusText}`);
+            }
+            console.log("Mensagem Telegram enviada com sucesso!");
+        })
+        .catch(error => {
+            console.error("Erro ao enviar mensagem via Telegram:", error);
+        });
     }
 
     // Função para atualizar as cores do preenchimento (Sua função original)
@@ -274,7 +309,8 @@ document.addEventListener("DOMContentLoaded", function () {
         inicioEsvaziamentoTimestamp = null;
         isFirstLoad = true;
         alerta80Exibido = false;
-        mensagemWhatsAppEnviada = false;
+        // mensagemWhatsAppEnviada = false;
+        mensagemTelegramEnviada = false;
         ultimoRegistroTimestamp = 0;
         historicoLocal = [];
 
@@ -419,10 +455,42 @@ document.addEventListener("DOMContentLoaded", function () {
                     preenchimento.style.height = `${volume}%`;
                     atualizarCorPreenchimento(volume);
                     
-                    // Lógica de Alerta (WhatsApp e Alert)
+                    // // Lógica de Alerta (WhatsApp e Alert)
+                    // if (volume >= 80) {
+                    //     volumeValue.className = "badge bg-danger";
+                    //     // Alerta visual crítico
+                    //     alertaCritico.innerHTML = `
+                    //         <div class="alert alert-danger d-flex align-items-center" role="alert">
+                    //             <div>
+                    //                 <strong>NÍVEL CRÍTICO!</strong> A lixeira (${lixeiraTitle.textContent}) atingiu ${Math.round(volume)}% e precisa ser esvaziada.
+                    //             </div>
+                    //         </div>`;
+                        
+                    //     if (!alerta80Exibido) {
+                    //         alert(`Atenção! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.`);
+                    //         alerta80Exibido = true;
+                    //     }
+                    //     if (!mensagemWhatsAppEnviada) {
+                    //         const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu ${Math.round(volume)}% de ocupação. Por favor, esvazie-a!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
+                    //         enviarMensagemWhatsApp(mensagem);
+                    //         mensagemWhatsAppEnviada = true;
+                    //     }
+                    // } else if (volume >= 70) {
+                    //     volumeValue.className = "badge bg-warning";
+                    //     alerta80Exibido = false;
+                    //     mensagemWhatsAppEnviada = false;
+                    //     alertaCritico.innerHTML = ""; // Limpa alerta
+                    // } else {
+                    //     volumeValue.className = "badge bg-success";
+                    //     alerta80Exibido = false;
+                    //     mensagemWhatsAppEnviada = false;
+                    //     alertaCritico.innerHTML = ""; // Limpa alerta
+                    // }
+
+                    // Lógica de Alerta (Telegram e Alert)
                     if (volume >= 80) {
                         volumeValue.className = "badge bg-danger";
-                        // Alerta visual crítico
+                        // Alerta visual crítico na interface
                         alertaCritico.innerHTML = `
                             <div class="alert alert-danger d-flex align-items-center" role="alert">
                                 <div>
@@ -434,20 +502,24 @@ document.addEventListener("DOMContentLoaded", function () {
                             alert(`Atenção! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.`);
                             alerta80Exibido = true;
                         }
-                        if (!mensagemWhatsAppEnviada) {
-                            const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu ${Math.round(volume)}% de ocupação. Por favor, esvazie-a!\n\nData/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
-                            enviarMensagemWhatsApp(mensagem);
-                            mensagemWhatsAppEnviada = true;
+                        
+                        // Envio para o Telegram
+                        if (!mensagemTelegramEnviada) {
+                            // A formatação com * cria textos em negrito no Telegram
+                            const mensagem = `🚨 *Alerta de Lixeira Cheia!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu *${Math.round(volume)}%* de ocupação. Por favor, realizar o esvaziamento.\n\n📅 Data/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
+                            
+                            enviarMensagemTelegram(mensagem);
+                            mensagemTelegramEnviada = true; // Impede o envio repetido
                         }
                     } else if (volume >= 70) {
                         volumeValue.className = "badge bg-warning";
                         alerta80Exibido = false;
-                        mensagemWhatsAppEnviada = false;
+                        mensagemTelegramEnviada = false; // Reseta o gatilho para o próximo enchimento
                         alertaCritico.innerHTML = ""; // Limpa alerta
                     } else {
                         volumeValue.className = "badge bg-success";
                         alerta80Exibido = false;
-                        mensagemWhatsAppEnviada = false;
+                        mensagemTelegramEnviada = false; // Reseta o gatilho
                         alertaCritico.innerHTML = ""; // Limpa alerta
                     }
 
