@@ -514,7 +514,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     } else if (volume >= 70) {
                         volumeValue.className = "badge bg-warning";
                         alerta80Exibido = false;
-                        mensagemTelegramEnviada = false; // Reseta o gatilho para o próximo enchimento
+                        mensagemTelegramEnviada = true; // Reseta o gatilho para o próximo enchimento
                         alertaCritico.innerHTML = ""; // Limpa alerta
                     } else {
                         volumeValue.className = "badge bg-success";
