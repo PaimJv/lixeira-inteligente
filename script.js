@@ -504,21 +504,23 @@ document.addEventListener("DOMContentLoaded", function () {
                                 </div>
                             </div>`;
                         
-                        // Garante que o de 70% não seja engatilhado se o lixo baixar para 75% ao acomodar
+                        // Garante que o de 70% não seja engatilhado se o lixo baixar para 75%
                         alerta70Exibido = true;
                         mensagemTelegram70Enviada = true; 
 
-                        // Alerta no Navegador (80%)
-                        if (!alerta80Exibido) {
-                            alert(`NÍVEL CRÍTICO! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.`);
-                            alerta80Exibido = true;
-                        }
-                        
-                        // Envio para o Telegram (80%)
+                        // 1º PASSO: ENVIO PARA O TELEGRAM (Sem bloqueios)
                         if (!mensagemTelegram80Enviada) {
                             const mensagem80 = `🚨 *NÍVEL CRÍTICO!* 🚨\n\nA lixeira *${lixeiraTitle.textContent}* atingiu *${Math.round(volume)}%* de ocupação. Por favor, realizar o esvaziamento imediatamente.\n\n📅 Data/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
                             enviarMensagemTelegram(mensagem80);
                             mensagemTelegram80Enviada = true; 
+                        }
+
+                        // 2º PASSO: ALERTA DE NAVEGADOR (Assíncrono)
+                        if (!alerta80Exibido) {
+                            alerta80Exibido = true;
+                            setTimeout(() => {
+                                alert(`NÍVEL CRÍTICO! O volume da lixeira (${lixeiraTitle.textContent}) atingiu ou ultrapassou 80%. Por favor, esvazie a lixeira.`);
+                            }, 500); // 500ms de atraso garante que o fetch do Telegram já saiu da máquina
                         }
 
                     } else if (volume >= 70) {
@@ -532,29 +534,31 @@ document.addEventListener("DOMContentLoaded", function () {
                                 </div>
                             </div>`;
 
-                        // Libera o alerta de 80% para disparar de novo se o volume subir
+                        // Libera o alerta de 80% para disparar se o volume subir
                         alerta80Exibido = false;
                         mensagemTelegram80Enviada = false;
 
-                        // Alerta no Navegador (70%)
-                        if (!alerta70Exibido) {
-                            alert(`Atenção! A lixeira (${lixeiraTitle.textContent}) está em ${Math.round(volume)}%.`);
-                            alerta70Exibido = true;
-                        }
-
-                        // Envio para o Telegram (70%)
+                        // 1º PASSO: ENVIO PARA O TELEGRAM (Sem bloqueios)
                         if (!mensagemTelegram70Enviada) {
                             const mensagem70 = `⚠️ *Atenção!* A lixeira *${lixeiraTitle.textContent}* está em *${Math.round(volume)}%*.\n\n📅 Data/Hora: ${new Date(currentTimestamp).toLocaleString("pt-BR")}`;
                             enviarMensagemTelegram(mensagem70);
                             mensagemTelegram70Enviada = true;
                         }
 
+                        // 2º PASSO: ALERTA DE NAVEGADOR (Assíncrono)
+                        if (!alerta70Exibido) {
+                            alerta70Exibido = true;
+                            setTimeout(() => {
+                                alert(`Atenção! A lixeira (${lixeiraTitle.textContent}) está em ${Math.round(volume)}%.`);
+                            }, 500);
+                        }
+
                     } else {
-                        // Volume abaixo de 70% (Lixeira esvaziada ou com pouco lixo)
+                        // Volume abaixo de 70% (Lixeira esvaziada)
                         volumeValue.className = "badge bg-success";
                         alertaCritico.innerHTML = ""; // Limpa os alertas de tela
                         
-                        // Rearma TODOS os gatilhos para o próximo ciclo de enchimento
+                        // Rearma TODOS os gatilhos para o próximo ciclo
                         alerta70Exibido = false;
                         alerta80Exibido = false;
                         mensagemTelegram70Enviada = false;
