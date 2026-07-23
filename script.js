@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ========== CREDENCIAIS TELEGRAM ==========
     const telegramBotToken = "8882849745:AAHohj7tRtZ-HRwtzcVYf4daEaG8xZhc0-4"; // Coloque o token do BotFather
-    const telegramChatId = "-5252595236"; // Coloque o seu ID numérico
+    const telegramChatId = "-1003996173255"; // Coloque o seu ID numérico
 
     // // Configurações para o CallMeBot
     // const callMeBotApiKey = "3113566"; // Sua API Key do CallMeBot
